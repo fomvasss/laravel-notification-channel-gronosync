@@ -5,6 +5,17 @@
 
 Send Laravel notifications via [ItsChats](https://itschats.com) — a multi-channel messaging platform supporting Telegram, WhatsApp, Instagram, Facebook and the built-in chat widget.
 
+## Contents
+
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Usage](#usage)
+- [Testing](#testing)
+- [Security](#security)
+- [Contributing](#contributing)
+- [Credits](#credits)
+- [License](#license)
+
 ## Installation
 
 ```bash
@@ -158,11 +169,21 @@ The contact is matched by `external_id` first, then `email`, then `phone`. If no
 
 ```bash
 composer test
+composer test:coverage
 ```
+
+## Security
+
+If you discover any security-related issues, please email fomin.vasil@gmail.com instead of using the issue tracker.
 
 ## Contributing
 
 Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+
+## Credits
+
+- [Fomin Vasil](https://github.com/fomvasss)
+- [All Contributors](../../contributors)
 
 ## License
 

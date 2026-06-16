@@ -5,6 +5,17 @@
 
 Надсилайте Laravel-нотифікації через [ItsChats](https://itschats.com) — мультиканальну платформу обміну повідомленнями з підтримкою Telegram, WhatsApp, Instagram, Facebook та вбудованого чат-віджету.
 
+## Зміст
+
+- [Встановлення](#встановлення)
+- [Налаштування](#налаштування)
+- [Використання](#використання)
+- [Тестування](#тестування)
+- [Безпека](#безпека)
+- [Участь у розробці](#участь-у-розробці)
+- [Автори](#автори)
+- [Ліцензія](#ліцензія)
+
 ## Встановлення
 
 ```bash
@@ -158,11 +169,21 @@ app(ItsChatsApi::class)->upsertContact([
 
 ```bash
 composer test
+composer test:coverage
 ```
 
-## Contributing
+## Безпека
+
+Якщо ви виявили проблему безпеки, надішліть листа на fomin.vasil@gmail.com замість використання трекеру задач.
+
+## Участь у розробці
 
 Деталі: [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Автори
+
+- [Fomin Vasil](https://github.com/fomvasss)
+- [All Contributors](../../contributors)
 
 ## Ліцензія
 
