@@ -178,7 +178,7 @@ This is useful for CRM systems (1C, WooCommerce, Drupal, etc.) that need to reac
 
 ### Configure the webhook
 
-In your ItsChats account, go to the admin panel → organization settings → widgets. Create or edit a **Widget Manager** widget and add your webhook URL. You can optionally filter by sender type (`contact`, `manager`, `ai`, `api`, `system`) — leave it empty to receive all message types.
+In your ItsChats account, go to the admin panel → organization settings → widgets. Create or edit a **Widget Manager** widget and add your webhook URL. You can optionally filter by sender type (`contact`, `manager`, `ai`, `extern`, `system`) — leave it empty to receive all message types.
 
 ### Webhook payload
 
@@ -204,7 +204,7 @@ ItsChats sends a `POST` request with JSON body:
 |---|---|
 | `event` | `chatmessage.new` |
 | `message.type` | `text`, `image`, `audio`, `video`, `file` |
-| `message.creator_type` | `contact`, `manager`, `ai`, `api`, `system` |
+| `message.creator_type` | `contact`, `manager`, `ai`, `extern`, `system` |
 
 ### Verify the signature
 

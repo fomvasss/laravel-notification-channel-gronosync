@@ -178,7 +178,7 @@ ItsChats може сповіщати ваш додаток через HTTP POST 
 
 ### Налаштування вебхуку
 
-В акаунті ItsChats перейдіть до адмін-панелі → налаштування організації → віджети. Створіть або відредагуйте **Widget Manager** віджет і вкажіть URL вебхуку. За бажанням оберіть фільтр за типом відправника (`contact`, `manager`, `ai`, `api`, `system`) — якщо не задано, надходять усі типи повідомлень.
+В акаунті ItsChats перейдіть до адмін-панелі → налаштування організації → віджети. Створіть або відредагуйте **Widget Manager** віджет і вкажіть URL вебхуку. За бажанням оберіть фільтр за типом відправника (`contact`, `manager`, `ai`, `extern`, `system`) — якщо не задано, надходять усі типи повідомлень.
 
 ### Структура payload
 
@@ -204,7 +204,7 @@ ItsChats надсилає `POST`-запит з JSON-тілом:
 |---|---|
 | `event` | `chatmessage.new` |
 | `message.type` | `text`, `image`, `audio`, `video`, `file` |
-| `message.creator_type` | `contact`, `manager`, `ai`, `api`, `system` |
+| `message.creator_type` | `contact`, `manager`, `ai`, `extern`, `system` |
 
 ### Верифікація запиту
 
