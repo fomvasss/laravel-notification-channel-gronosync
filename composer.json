@@ -1,0 +1,49 @@
+{
+    "name": "fomvasss/laravel-notification-channel-itschats",
+    "description": "Laravel notification channel for ItsChats — send messages via Telegram, WhatsApp, Instagram and other channels through the ItsChats platform.",
+    "homepage": "https://github.com/fomvasss/laravel-notification-channel-itschats",
+    "keywords": ["laravel", "notifications", "itschats", "telegram", "whatsapp", "chat"],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Fomin Vasil",
+            "email": "fomvasss@gmail.com",
+            "homepage": "https://github.com/fomvasss",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": ">=8.2",
+        "guzzlehttp/guzzle": "^7.0",
+        "illuminate/notifications": "^10|^11|^12|^13",
+        "illuminate/support": "^10|^11|^12|^13"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^8.0|^9.0",
+        "phpunit/phpunit": "^10.0|^11.0",
+        "mockery/mockery": "^1.6"
+    },
+    "autoload": {
+        "psr-4": {
+            "NotificationChannels\\ItsChats\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "NotificationChannels\\ItsChats\\Tests\\": "tests"
+        }
+    },
+    "scripts": {
+        "test": "vendor/bin/phpunit"
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "NotificationChannels\\ItsChats\\ItsChatsServiceProvider"
+            ]
+        }
+    }
+}
