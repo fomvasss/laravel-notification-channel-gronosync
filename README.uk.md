@@ -154,6 +154,16 @@ app(ItsChatsApi::class)->upsertContact([
 
 Контакт шукається спочатку за `external_id`, потім за `email`, потім за `phone`. Якщо не знайдено — створюється новий.
 
+## Тестування
+
+```bash
+composer test
+```
+
+## Contributing
+
+Деталі: [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Ліцензія
 
 MIT License. Детальніше: [LICENSE.md](LICENSE.md).

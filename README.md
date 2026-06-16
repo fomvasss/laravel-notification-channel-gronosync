@@ -154,6 +154,16 @@ app(ItsChatsApi::class)->upsertContact([
 
 The contact is matched by `external_id` first, then `email`, then `phone`. If not found — it is created.
 
+## Testing
+
+```bash
+composer test
+```
+
+## Contributing
+
+Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+
 ## License
 
 The MIT License (MIT). See [LICENSE.md](LICENSE.md).
