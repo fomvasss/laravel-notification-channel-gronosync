@@ -14,7 +14,6 @@ class ItsChatsMessage
     public ?string $attachmentsType = null;
     public array $attachmentItems = [];
 
-    public ?string $buttonsType = null;
     public array $buttonItems = [];
 
     public ?string $parseMode = null;
@@ -77,17 +76,14 @@ class ItsChatsMessage
 
     public function button(string $title, string $urlOrCallback, string $type = 'web_url'): static
     {
-        $this->buttonsType = $type;
-
         $key = $type === 'web_url' ? 'url' : 'callback';
-        $this->buttonItems[] = ['title' => $title, $key => $urlOrCallback];
+        $this->buttonItems[] = ['type' => $type, 'title' => $title, $key => $urlOrCallback];
 
         return $this;
     }
 
-    public function buttons(array $items, string $type = 'web_url'): static
+    public function buttons(array $items): static
     {
-        $this->buttonsType = $type;
         $this->buttonItems = array_merge($this->buttonItems, $items);
 
         return $this;
@@ -137,10 +133,7 @@ class ItsChatsMessage
         }
 
         if (!empty($this->buttonItems)) {
-            $message['buttons'] = [
-                'type' => $this->buttonsType ?? 'web_url',
-                'items' => $this->buttonItems,
-            ];
+            $message['buttons'] = $this->buttonItems;
         }
 
         $options = [];

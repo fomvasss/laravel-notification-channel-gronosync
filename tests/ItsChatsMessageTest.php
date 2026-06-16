@@ -75,10 +75,10 @@ class ItsChatsMessageTest extends TestCase
         $array = $message->toArray();
         $buttons = $array['message']['buttons'];
 
-        $this->assertSame('web_url', $buttons['type']);
-        $this->assertCount(1, $buttons['items']);
-        $this->assertSame('Open', $buttons['items'][0]['title']);
-        $this->assertSame('https://example.com', $buttons['items'][0]['url']);
+        $this->assertCount(1, $buttons);
+        $this->assertSame('web_url', $buttons[0]['type']);
+        $this->assertSame('Open', $buttons[0]['title']);
+        $this->assertSame('https://example.com', $buttons[0]['url']);
     }
 
     public function test_callback_buttons(): void
@@ -92,10 +92,10 @@ class ItsChatsMessageTest extends TestCase
         $array = $message->toArray();
         $buttons = $array['message']['buttons'];
 
-        $this->assertSame('callback', $buttons['type']);
-        $this->assertCount(2, $buttons['items']);
-        $this->assertSame('confirm', $buttons['items'][0]['callback']);
-        $this->assertSame('cancel', $buttons['items'][1]['callback']);
+        $this->assertCount(2, $buttons);
+        $this->assertSame('callback', $buttons[0]['type']);
+        $this->assertSame('confirm', $buttons[0]['callback']);
+        $this->assertSame('cancel', $buttons[1]['callback']);
     }
 
     public function test_options(): void

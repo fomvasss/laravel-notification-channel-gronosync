@@ -10,6 +10,9 @@
 - [Встановлення](#встановлення)
 - [Налаштування](#налаштування)
 - [Використання](#використання)
+  - [Надсилання нотифікацій](#клас-нотифікації)
+  - [Синхронізація контактів](#upsert-контакту)
+  - [Отримання повідомлень (вебхуки)](#отримання-повідомлень-вхідні-вебхуки)
 - [Тестування](#тестування)
 - [Безпека](#безпека)
 - [Участь у розробці](#участь-у-розробці)
@@ -164,6 +167,82 @@ app(ItsChatsApi::class)->upsertContact([
 ```
 
 Контакт шукається спочатку за `external_id`, потім за `email`, потім за `phone`. Якщо не знайдено — створюється новий.
+
+Доступні поля: `external_id`, `name`, `lastname`, `email`, `phone`, `telegram_id`, `whatsapp_id`, `instagram_id`, `facebook_id`.
+
+## Отримання повідомлень (вхідні вебхуки)
+
+ItsChats може сповіщати ваш додаток через HTTP POST щоразу, коли в чаті з'являється нове повідомлення. Це дозволяє реалізувати двосторонню інтеграцію: ваш додаток надсилає нотифікації контактам, а ItsChats повертає вхідні повідомлення від контактів назад до вас.
+
+Це особливо актуально для CRM-систем (1C, WooCommerce, Drupal тощо), яким потрібно реагувати на відповіді клієнтів.
+
+### Налаштування вебхуку
+
+В акаунті ItsChats перейдіть до адмін-панелі → налаштування організації → віджети. Створіть або відредагуйте **Widget Manager** віджет і вкажіть URL вебхуку. За бажанням оберіть фільтр за типом відправника (`contact`, `manager`, `ai`, `api`, `system`) — якщо не задано, надходять усі типи повідомлень.
+
+### Структура payload
+
+ItsChats надсилає `POST`-запит з JSON-тілом:
+
+```json
+{
+    "event": "chatmessage.new",
+    "organization_id": "9d4c1a00-0000-4e2f-b1b2-000000000001",
+    "message": {
+        "id": "9d4c1a00-0000-4e2f-b1b2-000000000002",
+        "type": "text",
+        "creator_type": "contact",
+        "content": "Привіт, мені потрібна допомога з замовленням.",
+        "created_at": "2024-06-01T10:00:00.000000Z",
+        "updated_at": "2024-06-01T10:00:00.000000Z",
+        "reactions": []
+    }
+}
+```
+
+| Поле | Значення |
+|---|---|
+| `event` | `chatmessage.new` |
+| `message.type` | `text`, `image`, `audio`, `video`, `file` |
+| `message.creator_type` | `contact`, `manager`, `ai`, `api`, `system` |
+
+### Верифікація запиту
+
+Кожен запит містить заголовок `X-Widget-Token` з токеном віджета. Використовуйте його для перевірки автентичності запиту:
+
+```php
+// routes/api.php
+Route::post('/webhooks/itschats', [ItsChatsWebhookController::class, 'handle'])
+    ->middleware('throttle:60,1');
+```
+
+```php
+// app/Http/Controllers/ItsChatsWebhookController.php
+class ItsChatsWebhookController extends Controller
+{
+    public function handle(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $token = $request->header('X-Widget-Token');
+
+        if ($token !== config('services.itschats.token')) {
+            abort(401);
+        }
+
+        $event   = $request->input('event');            // "chatmessage.new"
+        $message = $request->input('message');
+        $orgId   = $request->input('organization_id');
+
+        if ($event === 'chatmessage.new' && $message['creator_type'] === 'contact') {
+            // Обробка вхідного повідомлення від контакту
+            // наприклад: оновлення CRM, тригер воркфлоу, логування в 1С
+        }
+
+        return response()->json(['ok' => true]);
+    }
+}
+```
+
+> **Примітка:** ItsChats повторює доставку вебхуку до 3 разів з інтервалом 30 секунд у разі помилки. Поверніть відповідь `2xx` якнайшвидше, а важку обробку передайте в чергу.
 
 ## Тестування
 

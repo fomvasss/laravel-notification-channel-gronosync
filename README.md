@@ -10,6 +10,9 @@ Send Laravel notifications via [ItsChats](https://itschats.com) — a multi-chan
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [Usage](#usage)
+  - [Sending notifications](#notification-class)
+  - [Contact sync](#upsert-contact)
+  - [Receiving messages (webhooks)](#receiving-messages-incoming-webhooks)
 - [Testing](#testing)
 - [Security](#security)
 - [Contributing](#contributing)
@@ -164,6 +167,82 @@ app(ItsChatsApi::class)->upsertContact([
 ```
 
 The contact is matched by `external_id` first, then `email`, then `phone`. If not found — it is created.
+
+Accepted fields: `external_id`, `name`, `lastname`, `email`, `phone`, `telegram_id`, `whatsapp_id`, `instagram_id`, `facebook_id`.
+
+## Receiving messages (incoming webhooks)
+
+ItsChats can notify your application via HTTP POST whenever a new message appears in a chat. This enables bidirectional integration: your app sends notifications to contacts, and ItsChats pushes incoming contact messages back to your app.
+
+This is useful for CRM systems (1C, WooCommerce, Drupal, etc.) that need to react to customer replies.
+
+### Configure the webhook
+
+In your ItsChats account, go to the admin panel → organization settings → widgets. Create or edit a **Widget Manager** widget and add your webhook URL. You can optionally filter by sender type (`contact`, `manager`, `ai`, `api`, `system`) — leave it empty to receive all message types.
+
+### Webhook payload
+
+ItsChats sends a `POST` request with JSON body:
+
+```json
+{
+    "event": "chatmessage.new",
+    "organization_id": "9d4c1a00-0000-4e2f-b1b2-000000000001",
+    "message": {
+        "id": "9d4c1a00-0000-4e2f-b1b2-000000000002",
+        "type": "text",
+        "creator_type": "contact",
+        "content": "Hello, I need help with my order.",
+        "created_at": "2024-06-01T10:00:00.000000Z",
+        "updated_at": "2024-06-01T10:00:00.000000Z",
+        "reactions": []
+    }
+}
+```
+
+| Field | Values |
+|---|---|
+| `event` | `chatmessage.new` |
+| `message.type` | `text`, `image`, `audio`, `video`, `file` |
+| `message.creator_type` | `contact`, `manager`, `ai`, `api`, `system` |
+
+### Verify the signature
+
+Every request includes an `X-Widget-Token` header containing the widget's token. Use it to confirm the request came from ItsChats:
+
+```php
+// routes/api.php
+Route::post('/webhooks/itschats', [ItsChatsWebhookController::class, 'handle'])
+    ->middleware('throttle:60,1');
+```
+
+```php
+// app/Http/Controllers/ItsChatsWebhookController.php
+class ItsChatsWebhookController extends Controller
+{
+    public function handle(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $token = $request->header('X-Widget-Token');
+
+        if ($token !== config('services.itschats.token')) {
+            abort(401);
+        }
+
+        $event   = $request->input('event');            // "chatmessage.new"
+        $message = $request->input('message');
+        $orgId   = $request->input('organization_id');
+
+        if ($event === 'chatmessage.new' && $message['creator_type'] === 'contact') {
+            // Handle incoming message from contact
+            // e.g. update CRM, trigger a workflow, log to 1C
+        }
+
+        return response()->json(['ok' => true]);
+    }
+}
+```
+
+> **Note:** ItsChats retries failed webhook deliveries up to 3 times with a 30-second backoff. Return a `2xx` response as quickly as possible and dispatch heavy processing to a queue.
 
 ## Testing
 
