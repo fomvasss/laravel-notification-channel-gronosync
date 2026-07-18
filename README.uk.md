@@ -163,12 +163,13 @@ app(ItsChatsApi::class)->upsertContact([
     'lastname'    => $user->last_name,
     'email'       => $user->email,
     'phone'       => $user->phone,
+    'extra'       => ['plan' => 'pro'],
 ]);
 ```
 
 Контакт шукається спочатку за `external_id`, потім за `email`, потім за `phone`. Якщо не знайдено — створюється новий.
 
-Доступні поля: `external_id`, `name`, `lastname`, `email`, `phone`, `telegram_id`, `whatsapp_id`, `instagram_id`, `facebook_id`.
+Доступні поля: `external_id`, `name`, `lastname`, `email`, `phone`, `birthday`, `gender`, `locale`, `comment`, `extra`.
 
 ## Отримання повідомлень (вхідні вебхуки)
 

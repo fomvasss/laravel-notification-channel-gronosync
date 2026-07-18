@@ -163,12 +163,13 @@ app(ItsChatsApi::class)->upsertContact([
     'lastname'    => $user->last_name,
     'email'       => $user->email,
     'phone'       => $user->phone,
+    'extra'       => ['plan' => 'pro'],
 ]);
 ```
 
 The contact is matched by `external_id` first, then `email`, then `phone`. If not found — it is created.
 
-Accepted fields: `external_id`, `name`, `lastname`, `email`, `phone`, `telegram_id`, `whatsapp_id`, `instagram_id`, `facebook_id`.
+Accepted fields: `external_id`, `name`, `lastname`, `email`, `phone`, `birthday`, `gender`, `locale`, `comment`, `extra`.
 
 ## Receiving messages (incoming webhooks)
 
