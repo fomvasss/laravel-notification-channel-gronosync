@@ -106,9 +106,11 @@ ItsChatsMessage::make()
 | `attachment(string $url, ?string $filename, string $type)` | Add a single attachment. Types: `image`, `audio`, `video`, `document` |
 | `attachments(array $items, string $type)` | Add multiple attachments at once |
 | `button(string $title, string $urlOrCallback, string $type)` | Add a button. Types: `web_url`, `callback` |
-| `buttons(array $items, string $type)` | Add multiple buttons at once |
+| `buttons(array $items)` | Add multiple buttons at once |
 | `parseMode(string $mode)` | Text formatting: `html` or `markdown` (Telegram) |
 | `previewUrl(bool $val)` | Show URL preview: `true` or `false` (WhatsApp) |
+| `replyToId(string $id)` | ID of the message being replied to |
+| `forwardedFromId(string $id)` | ID of the forwarded message |
 
 ### Examples
 
@@ -170,6 +172,12 @@ app(ItsChatsApi::class)->upsertContact([
 The contact is matched by `external_id` first, then `email`, then `phone`. If not found — it is created.
 
 Accepted fields: `external_id`, `name`, `lastname`, `email`, `phone`, `birthday`, `gender`, `locale`, `comment`, `extra`.
+
+Response: `{"id": "...", "created": true, "sid": "..."}`. `sendMessage()` also includes `sid` in its response.
+`sid` is the contact's identity token in ItsChats — mainly used for the Telegram continuation link
+(`https://t.me/{bot}?start={sid}`). It's not needed for linking this contact to your site's `chat_contact`
+widget — pass the same `external_id` there (as `data-external-id`) and it resolves to the same contact
+automatically.
 
 ## Receiving messages (incoming webhooks)
 

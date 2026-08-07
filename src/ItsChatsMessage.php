@@ -19,6 +19,9 @@ class ItsChatsMessage
     public ?string $parseMode = null;
     public ?bool $previewUrl = null;
 
+    public ?string $replyToId = null;
+    public ?string $forwardedFromId = null;
+
     public static function make(): static
     {
         return new static();
@@ -103,6 +106,20 @@ class ItsChatsMessage
         return $this;
     }
 
+    public function replyToId(string $id): static
+    {
+        $this->replyToId = $id;
+
+        return $this;
+    }
+
+    public function forwardedFromId(string $id): static
+    {
+        $this->forwardedFromId = $id;
+
+        return $this;
+    }
+
     public function toArray(): array
     {
         $body = [];
@@ -148,6 +165,14 @@ class ItsChatsMessage
         }
 
         $body['message'] = $message;
+
+        if ($this->replyToId !== null) {
+            $body['reply_to_id'] = $this->replyToId;
+        }
+
+        if ($this->forwardedFromId !== null) {
+            $body['forwarded_from_id'] = $this->forwardedFromId;
+        }
 
         return $body;
     }

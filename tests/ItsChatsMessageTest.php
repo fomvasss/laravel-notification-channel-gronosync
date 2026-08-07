@@ -125,4 +125,30 @@ class ItsChatsMessageTest extends TestCase
         $this->assertArrayNotHasKey('attachments', $array['message']);
         $this->assertArrayNotHasKey('buttons', $array['message']);
     }
+
+    public function test_reply_to_id_and_forwarded_from_id(): void
+    {
+        $message = ItsChatsMessage::make()
+            ->contactId('uuid-123')
+            ->text('Reply.')
+            ->replyToId('msg-1')
+            ->forwardedFromId('msg-2');
+
+        $array = $message->toArray();
+
+        $this->assertSame('msg-1', $array['reply_to_id']);
+        $this->assertSame('msg-2', $array['forwarded_from_id']);
+    }
+
+    public function test_no_reply_or_forward_keys_when_not_set(): void
+    {
+        $message = ItsChatsMessage::make()
+            ->contactId('uuid-123')
+            ->text('Plain text.');
+
+        $array = $message->toArray();
+
+        $this->assertArrayNotHasKey('reply_to_id', $array);
+        $this->assertArrayNotHasKey('forwarded_from_id', $array);
+    }
 }

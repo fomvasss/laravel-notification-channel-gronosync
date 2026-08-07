@@ -106,9 +106,11 @@ ItsChatsMessage::make()
 | `attachment(string $url, ?string $filename, string $type)` | Додати один файл. Типи: `image`, `audio`, `video`, `document` |
 | `attachments(array $items, string $type)` | Додати кілька файлів одразу |
 | `button(string $title, string $urlOrCallback, string $type)` | Додати кнопку. Типи: `web_url`, `callback` |
-| `buttons(array $items, string $type)` | Додати кілька кнопок одразу |
+| `buttons(array $items)` | Додати кілька кнопок одразу |
 | `parseMode(string $mode)` | Форматування тексту: `html` або `markdown` (Telegram) |
 | `previewUrl(bool $val)` | Показувати попередній перегляд URL: `true` або `false` (WhatsApp) |
+| `replyToId(string $id)` | ID повідомлення, на яке надсилається відповідь |
+| `forwardedFromId(string $id)` | ID пересланого повідомлення |
 
 ### Приклади
 
@@ -170,6 +172,12 @@ app(ItsChatsApi::class)->upsertContact([
 Контакт шукається спочатку за `external_id`, потім за `email`, потім за `phone`. Якщо не знайдено — створюється новий.
 
 Доступні поля: `external_id`, `name`, `lastname`, `email`, `phone`, `birthday`, `gender`, `locale`, `comment`, `extra`.
+
+Відповідь: `{"id": "...", "created": true, "sid": "..."}`. `sendMessage()` теж повертає `sid` у відповіді.
+`sid` — токен ідентичності контакту в ItsChats, потрібен переважно для Telegram-лінку продовження діалогу
+(`https://t.me/{bot}?start={sid}`). Для зв'язку цього контакту з `chat_contact`-віджетом на вашому сайті він
+не потрібен — передайте той самий `external_id` туди (як `data-external-id`), і він автоматично прив'яжеться
+до того ж контакту.
 
 ## Отримання повідомлень (вхідні вебхуки)
 
