@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace NotificationChannels\ItsChats\Tests;
+namespace NotificationChannels\Gronosync\Tests;
 
-use NotificationChannels\ItsChats\ItsChatsMessage;
+use NotificationChannels\Gronosync\GronosyncMessage;
 
-class ItsChatsMessageTest extends TestCase
+class GronosyncMessageTest extends TestCase
 {
     public function test_basic_text_with_contact_id(): void
     {
-        $message = ItsChatsMessage::make()
+        $message = GronosyncMessage::make()
             ->contactId('uuid-123')
             ->text('Hello!');
 
@@ -24,7 +24,7 @@ class ItsChatsMessageTest extends TestCase
 
     public function test_to_with_channel_id(): void
     {
-        $message = ItsChatsMessage::make()
+        $message = GronosyncMessage::make()
             ->to('380991234567')
             ->channelId('channel-uuid')
             ->text('Welcome!');
@@ -38,7 +38,7 @@ class ItsChatsMessageTest extends TestCase
 
     public function test_single_attachment(): void
     {
-        $message = ItsChatsMessage::make()
+        $message = GronosyncMessage::make()
             ->contactId('uuid-123')
             ->text('See attachment.')
             ->attachment('https://example.com/file.pdf', 'file.pdf', 'document');
@@ -54,7 +54,7 @@ class ItsChatsMessageTest extends TestCase
 
     public function test_multiple_attachments(): void
     {
-        $message = ItsChatsMessage::make()
+        $message = GronosyncMessage::make()
             ->contactId('uuid-123')
             ->attachment('https://example.com/a.jpg', type: 'image')
             ->attachment('https://example.com/b.jpg', type: 'image');
@@ -67,7 +67,7 @@ class ItsChatsMessageTest extends TestCase
 
     public function test_web_url_button(): void
     {
-        $message = ItsChatsMessage::make()
+        $message = GronosyncMessage::make()
             ->contactId('uuid-123')
             ->text('Click below.')
             ->button('Open', 'https://example.com');
@@ -83,7 +83,7 @@ class ItsChatsMessageTest extends TestCase
 
     public function test_callback_buttons(): void
     {
-        $message = ItsChatsMessage::make()
+        $message = GronosyncMessage::make()
             ->contactId('uuid-123')
             ->text('Choose:')
             ->button('Yes', 'confirm', 'callback')
@@ -100,7 +100,7 @@ class ItsChatsMessageTest extends TestCase
 
     public function test_options(): void
     {
-        $message = ItsChatsMessage::make()
+        $message = GronosyncMessage::make()
             ->contactId('uuid-123')
             ->text('<b>Bold</b>')
             ->parseMode('html')
@@ -115,7 +115,7 @@ class ItsChatsMessageTest extends TestCase
 
     public function test_no_options_key_when_empty(): void
     {
-        $message = ItsChatsMessage::make()
+        $message = GronosyncMessage::make()
             ->contactId('uuid-123')
             ->text('Plain text.');
 
@@ -128,7 +128,7 @@ class ItsChatsMessageTest extends TestCase
 
     public function test_reply_to_id_and_forwarded_from_id(): void
     {
-        $message = ItsChatsMessage::make()
+        $message = GronosyncMessage::make()
             ->contactId('uuid-123')
             ->text('Reply.')
             ->replyToId('msg-1')
@@ -142,7 +142,7 @@ class ItsChatsMessageTest extends TestCase
 
     public function test_no_reply_or_forward_keys_when_not_set(): void
     {
-        $message = ItsChatsMessage::make()
+        $message = GronosyncMessage::make()
             ->contactId('uuid-123')
             ->text('Plain text.');
 

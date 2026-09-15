@@ -1,8 +1,8 @@
 {
-    "name": "fomvasss/laravel-notification-channel-itschats",
-    "description": "Laravel notification channel for ItsChats — send messages via Telegram, WhatsApp, Instagram and other channels through the ItsChats platform.",
-    "homepage": "https://github.com/fomvasss/laravel-notification-channel-itschats",
-    "keywords": ["laravel", "notifications", "itschats", "telegram", "whatsapp", "chat"],
+    "name": "fomvasss/laravel-notification-channel-gronosync",
+    "description": "Laravel notification channel for GronoSync — send messages via Telegram, WhatsApp, Instagram, Facebook, Viber, SMS, email and other channels through the GronoSync platform.",
+    "homepage": "https://github.com/fomvasss/laravel-notification-channel-gronosync",
+    "keywords": ["laravel", "notifications", "gronosync", "telegram", "whatsapp", "chat"],
     "license": "MIT",
     "authors": [
         {
@@ -19,18 +19,18 @@
         "illuminate/support": "^10|^11|^12|^13"
     },
     "require-dev": {
-        "orchestra/testbench": "^8.0|^9.0|^10.0",
-        "phpunit/phpunit": "^10.0|^11.0",
+        "orchestra/testbench": "^8.0|^9.0|^10.0|^11.0",
+        "phpunit/phpunit": "^10.0|^11.0|^12.0",
         "mockery/mockery": "^1.6"
     },
     "autoload": {
         "psr-4": {
-            "NotificationChannels\\ItsChats\\": "src"
+            "NotificationChannels\\Gronosync\\": "src"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "NotificationChannels\\ItsChats\\Tests\\": "tests"
+            "NotificationChannels\\Gronosync\\Tests\\": "tests"
         }
     },
     "scripts": {
@@ -51,7 +51,7 @@
     "extra": {
         "laravel": {
             "providers": [
-                "NotificationChannels\\ItsChats\\ItsChatsServiceProvider"
+                "NotificationChannels\\Gronosync\\GronosyncServiceProvider"
             ]
         }
     }

@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-namespace NotificationChannels\ItsChats;
+namespace NotificationChannels\Gronosync;
 
 use Illuminate\Support\ServiceProvider;
 
-class ItsChatsServiceProvider extends ServiceProvider
+class GronosyncServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->app->singleton(ItsChatsApi::class, function ($app) {
-            $config = $app['config']['services.itschats'] ?? [];
+        $this->app->singleton(GronosyncApi::class, function ($app) {
+            $config = $app['config']['services.gronosync'] ?? [];
 
-            return new ItsChatsApi(
+            return new GronosyncApi(
                 baseUrl: $config['url'] ?? '',
                 token: $config['token'] ?? '',
                 config: $config,
@@ -24,7 +24,7 @@ class ItsChatsServiceProvider extends ServiceProvider
     public function provides(): array
     {
         return [
-            ItsChatsApi::class,
+            GronosyncApi::class,
         ];
     }
 }

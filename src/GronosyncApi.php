@@ -2,13 +2,14 @@
 
 declare(strict_types=1);
 
-namespace NotificationChannels\ItsChats;
+namespace NotificationChannels\Gronosync;
 
 use GuzzleHttp\Client as HttpClient;
 use GuzzleHttp\Exception\GuzzleException;
-use NotificationChannels\ItsChats\Exceptions\CouldNotSendNotification;
+use GuzzleHttp\Exception\RequestException;
+use NotificationChannels\Gronosync\Exceptions\CouldNotSendNotification;
 
-class ItsChatsApi
+class GronosyncApi
 {
     protected HttpClient $client;
 
@@ -17,16 +18,17 @@ class ItsChatsApi
         protected readonly string $token,
         array $config = [],
     ) {
-        $this->client = new HttpClient([
+        $this->client = new HttpClient(array_filter([
             'timeout' => (int) ($config['timeout'] ?? 15),
             'connect_timeout' => (int) ($config['connect_timeout'] ?? 10),
-        ]);
+            'handler' => $config['handler'] ?? null,
+        ]));
     }
 
     /**
      * @throws CouldNotSendNotification
      */
-    public function sendMessage(ItsChatsMessage $message): array
+    public function sendMessage(GronosyncMessage $message): array
     {
         return $this->post('/api/extern/message', $message->toArray());
     }
@@ -36,7 +38,7 @@ class ItsChatsApi
      */
     public function upsertContact(array $data): array
     {
-        $allowed = ['external_id', 'name', 'lastname', 'email', 'phone', 'birthday', 'gender', 'locale', 'comment', 'extra'];
+        $allowed = ['external_id', 'name', 'lastname', 'email', 'phone', 'birthday', 'gender', 'locale', 'timezone', 'comment', 'extra'];
 
         return $this->post('/api/extern/contacts', array_intersect_key($data, array_flip($allowed)));
     }
@@ -49,7 +51,7 @@ class ItsChatsApi
         try {
             $response = $this->client->request('POST', rtrim($this->baseUrl, '/') . $path, [
                 'headers' => [
-                    'X-Widget-Token' => $this->token,
+                    'Authorization' => "Bearer {$this->token}",
                     'Accept' => 'application/json',
                     'Content-Type' => 'application/json',
                 ],
@@ -63,6 +65,17 @@ class ItsChatsApi
             }
 
             return $result;
+        } catch (RequestException $e) {
+            // Guzzle truncates the body in its own message, so the API error (`message`, `code`) is read from the response
+            $status = $e->getResponse()?->getStatusCode();
+            $body = $e->getResponse() ? json_decode((string) $e->getResponse()->getBody(), true) : null;
+            $body = is_array($body) ? $body : null;
+
+            throw CouldNotSendNotification::serviceRespondedWithAnError(
+                is_string($body['message'] ?? null) ? $body['message'] : $e->getMessage(),
+                $status,
+                $body,
+            );
         } catch (GuzzleException $e) {
             throw CouldNotSendNotification::serviceRespondedWithAnError($e->getMessage());
         }

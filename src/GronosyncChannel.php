@@ -2,35 +2,35 @@
 
 declare(strict_types=1);
 
-namespace NotificationChannels\ItsChats;
+namespace NotificationChannels\Gronosync;
 
-use Illuminate\Events\Dispatcher;
+use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Notifications\Events\NotificationFailed;
 use Illuminate\Notifications\Notification;
-use NotificationChannels\ItsChats\Exceptions\CouldNotSendNotification;
+use NotificationChannels\Gronosync\Exceptions\CouldNotSendNotification;
 
-class ItsChatsChannel
+class GronosyncChannel
 {
     public function __construct(
-        protected readonly ItsChatsApi $api,
+        protected readonly GronosyncApi $api,
         protected readonly Dispatcher $events,
     ) {}
 
     public function send(mixed $notifiable, Notification $notification): ?array
     {
         try {
-            $message = $notification->toItsChats($notifiable);
+            $message = $notification->toGronosync($notifiable);
 
             if (is_string($message)) {
-                $message = ItsChatsMessage::make()->text($message);
+                $message = GronosyncMessage::make()->text($message);
             }
 
-            if (!$message instanceof ItsChatsMessage) {
+            if (!$message instanceof GronosyncMessage) {
                 throw CouldNotSendNotification::invalidMessageObject($message);
             }
 
             if ($message->contactId === null && $message->to === null) {
-                $contactId = $notifiable->routeNotificationFor('ItsChats', $notification);
+                $contactId = $notifiable->routeNotificationFor('Gronosync', $notification);
 
                 if (empty($contactId)) {
                     throw CouldNotSendNotification::invalidReceiver();
@@ -44,7 +44,7 @@ class ItsChatsChannel
             $this->events->dispatch(new NotificationFailed(
                 $notifiable,
                 $notification,
-                'ItsChats',
+                'Gronosync',
                 ['message' => $exception->getMessage(), 'exception' => $exception],
             ));
         }

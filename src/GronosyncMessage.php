@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace NotificationChannels\ItsChats;
+namespace NotificationChannels\Gronosync;
 
-class ItsChatsMessage
+class GronosyncMessage
 {
     public ?string $contactId = null;
     public ?string $to = null;
