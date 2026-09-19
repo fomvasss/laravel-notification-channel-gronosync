@@ -277,6 +277,7 @@ GronoSync може сповіщати ваш додаток через HTTP POST
 |---|---|
 | `contact.created` | Контакт звернувся вперше (месенджер, чат-віджет, форма, лист) або ви написали новому контакту через `to()`. Не приходить для контактів, створених `upsertContact()`, імпортом або простим відкриттям сторінки з віджетом |
 | `chat.message.received` | Контакт надіслав нове повідомлення |
+| `chat.message.sent` | Ваша сторона написала контакту: менеджер, AI-асистент, API (включно з повідомленнями, надісланими через `to()`) або системне повідомлення (напр. вітальне). Внутрішні нотатки й журнал чату не надсилаються |
 | `chat.manager_needed` | AI-асистент передав чат менеджеру-людині |
 | `chat.closed` | Менеджер закрив чат |
 | `contact.updated` | Змінено email, телефон, ім'я чи прізвище контакту (зокрема через `upsertContact()`) |
@@ -287,6 +288,7 @@ GronoSync надсилає `POST`-запит з JSON-тілом:
 
 ```json
 {
+    "event_id": "0a1b2c3d-0000-4e2f-b1b2-000000000000",
     "event": "chat.message.received",
     "organization_id": "9d4c1a00-0000-4e2f-b1b2-000000000001",
     "data": {
@@ -308,8 +310,8 @@ GronoSync надсилає `POST`-запит з JSON-тілом:
 
 | Подія | `data` |
 |---|---|
-| `chat.message.received` | Повідомлення: `id`, `type`, `creator_type`, `content`, `channel`, `member`, `files`, `reply_to`, `created_at`. Повідомлення, надіслане з реклами Meta (Facebook / Instagram / WhatsApp), має ще `referral`: `source`, `ad_id`, `post_id`, `title`, `body`, `url`, `ref`, `click_id` (лише непорожні ключі) |
-| `contact.created` / `contact.updated` | Контакт: `id`, `name`, `lastname`, `email`, `phone`, `locale`, `timezone`, `extra`, `external_id`, ID у месенджерах, … Контакт, що прийшов з реклами Meta, має `ad_referral` (перший рекламний дотик, ті самі ключі, що й `referral`, плюс `channel_id`, `received_at`), інакше `null` |
+| `chat.message.received` / `chat.message.sent` | Повідомлення: `id`, `type`, `creator_type`, `content`, `channel`, `member`, `files`, `reply_to`, `created_at`. Повідомлення, надіслане з реклами Meta (Facebook / Instagram / WhatsApp), має ще `referral`: `source`, `ad_id`, `post_id`, `title`, `body`, `url`, `ref`, `click_id` (лише непорожні ключі) |
+| `contact.created` / `contact.updated` | Контакт: `id`, `name`, `lastname`, `email`, `phone`, `locale`, `timezone`, `extra`, `external_id`, ID у месенджерах, `created_via` (як з'явився контакт: `messenger`, `widget`, `form`, `mail`, `extern_api`, `import`; `null` для старіших контактів), `created_channel_id`, … Контакт, що прийшов з реклами Meta, має `ad_referral` (перший рекламний дотик, ті самі ключі, що й `referral`, плюс `channel_id`, `received_at`), інакше `null` |
 | `chat.manager_needed` / `chat.closed` | `{"chat_id": "...", "contact": {"id", "name", "lastname", "email", "phone"}}` |
 
 ### Верифікація запиту
@@ -347,7 +349,7 @@ class GronosyncWebhookController extends Controller
 }
 ```
 
-> **Примітка:** доставка вважається невдалою при мережевій помилці, таймауті (10 секунд) або відповіді не `2xx`; GronoSync робить до 3 спроб з інтервалом 30 секунд. Поверніть відповідь `2xx` якнайшвидше, а важку обробку передайте в чергу. Та сама подія може прийти більше одного разу — за потреби дедуплікуйте за `data.id` / `chat_id`.
+> **Примітка:** доставка вважається невдалою при мережевій помилці, таймауті (10 секунд) або відповіді не `2xx`; GronoSync робить до 3 спроб з інтервалом 30 секунд. Поверніть відповідь `2xx` якнайшвидше, а важку обробку передайте в чергу. Та сама подія може прийти більше одного разу — кожна спроба несе той самий `event_id`, тож зберігайте оброблені id і пропускайте повтори. `chat.message.sent` приходить і на повідомлення, надіслані через цей пакет: відсіюйте їх за `message_id` з відповіді `sendMessage()` або за `creator_type = extern`.
 
 ## Тестування
 

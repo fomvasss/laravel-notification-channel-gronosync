@@ -277,6 +277,7 @@ In the [GronoSync dashboard](https://app.gronosync.com), go to organization sett
 |---|---|
 | `contact.created` | A contact reaches out for the first time (messenger, chat widget, form, email), or you message a new contact via `to()`. Not fired for contacts created by `upsertContact()`, bulk import, or just opening a page with the widget |
 | `chat.message.received` | A contact sends a new message |
+| `chat.message.sent` | Your side writes to a contact: a manager, the AI assistant, the API (including messages you sent with `to()`) or a system message (e.g. a welcome message). Internal notes and chat log entries are not sent |
 | `chat.manager_needed` | The AI assistant hands the chat over to a human manager |
 | `chat.closed` | A manager closes a chat |
 | `contact.updated` | A contact's email, phone, name or lastname changes (including via `upsertContact()`) |
@@ -287,6 +288,7 @@ GronoSync sends a `POST` request with JSON body:
 
 ```json
 {
+    "event_id": "0a1b2c3d-0000-4e2f-b1b2-000000000000",
     "event": "chat.message.received",
     "organization_id": "9d4c1a00-0000-4e2f-b1b2-000000000001",
     "data": {
@@ -308,8 +310,8 @@ GronoSync sends a `POST` request with JSON body:
 
 | Event | `data` |
 |---|---|
-| `chat.message.received` | Message: `id`, `type`, `creator_type`, `content`, `channel`, `member`, `files`, `reply_to`, `created_at`. Messages sent from a Meta ad (Facebook / Instagram / WhatsApp) also have `referral`: `source`, `ad_id`, `post_id`, `title`, `body`, `url`, `ref`, `click_id` (only non-empty keys) |
-| `contact.created` / `contact.updated` | Contact: `id`, `name`, `lastname`, `email`, `phone`, `locale`, `timezone`, `extra`, `external_id`, messenger IDs, … Contacts that came from a Meta ad have `ad_referral` (the first ad touch, same keys as `referral` plus `channel_id`, `received_at`), otherwise `null` |
+| `chat.message.received` / `chat.message.sent` | Message: `id`, `type`, `creator_type`, `content`, `channel`, `member`, `files`, `reply_to`, `created_at`. Messages sent from a Meta ad (Facebook / Instagram / WhatsApp) also have `referral`: `source`, `ad_id`, `post_id`, `title`, `body`, `url`, `ref`, `click_id` (only non-empty keys) |
+| `contact.created` / `contact.updated` | Contact: `id`, `name`, `lastname`, `email`, `phone`, `locale`, `timezone`, `extra`, `external_id`, messenger IDs, `created_via` (how the contact appeared: `messenger`, `widget`, `form`, `mail`, `extern_api`, `import`; `null` for older contacts), `created_channel_id`, … Contacts that came from a Meta ad have `ad_referral` (the first ad touch, same keys as `referral` plus `channel_id`, `received_at`), otherwise `null` |
 | `chat.manager_needed` / `chat.closed` | `{"chat_id": "...", "contact": {"id", "name", "lastname", "email", "phone"}}` |
 
 ### Verify the request
@@ -347,7 +349,7 @@ class GronosyncWebhookController extends Controller
 }
 ```
 
-> **Note:** a delivery is considered failed on a network error, a timeout (10 seconds) or a non-`2xx` response; GronoSync makes up to 3 attempts with a 30-second backoff. Return a `2xx` response as quickly as possible and dispatch heavy processing to a queue. The same event may arrive more than once — deduplicate by `data.id` / `chat_id` if it matters.
+> **Note:** a delivery is considered failed on a network error, a timeout (10 seconds) or a non-`2xx` response; GronoSync makes up to 3 attempts with a 30-second backoff. Return a `2xx` response as quickly as possible and dispatch heavy processing to a queue. The same event may arrive more than once — every attempt carries the same `event_id`, so store processed ids and skip repeats. `chat.message.sent` also echoes messages you sent through this package: skip them by `message_id` returned from `sendMessage()`, or by `creator_type = extern`.
 
 ## Testing
 
