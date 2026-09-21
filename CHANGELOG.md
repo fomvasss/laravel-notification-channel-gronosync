@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sending a message to a contact whose chat is blocked in GronoSync now fails with `422` and `code: chat_blocked`; previously it was delivered
 - `to()` is resolved by the channel type: phone number for SMS and e-chat WhatsApp channels (previously stored as email), any phone format accepted; widget/form channels reject `to` with `422`
 - Organization webhook deliveries are retried (up to 3 attempts, 30 s apart) on non-`2xx` responses and timeouts (10 s), not only on network errors
+- Every API request of a suspended organization fails with `403` and `code: organization_suspended` (both `sendMessage()` and `upsertContact()`); organization webhooks are not delivered while it is suspended
 
 - Contact payloads (webhooks `contact.created` / `contact.updated`) include `created_via` and `created_channel_id` — how and through which channel the contact appeared
 - `upsertContact()` no longer overwrites an existing contact's `source`

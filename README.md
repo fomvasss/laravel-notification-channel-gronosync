@@ -228,6 +228,7 @@ Common errors. The human-readable `message` is localized and may change — bran
 |---|---|---|
 | `422` | `chat_blocked` | The organization blocked the chat with this contact in GronoSync. The message is neither stored nor delivered. Mark the contact as "do not message" on your side; to send transactional messages (order status, etc.), unblock the chat in GronoSync first |
 | `422` | — | One of: the contact unsubscribed from messages; `channelId()` is missing for a new contact (or a contact without a chat); the contact has no identifier for this channel (e.g. no Telegram ID for a Telegram channel); WhatsApp 24-hour reply window is closed (you can reply only after the contact writes first); `to()` used with a widget/form channel; request validation failed |
+| `403` | `organization_suspended` | The organization is suspended by GronoSync. Every request with this token fails the same way until it is reactivated — stop retrying and contact GronoSync support |
 | `403` | — | The organization has no active subscription for outgoing messages |
 | `404` | — | `contactId()` or `channelId()` not found in your organization |
 | `429` | — | Rate limit: 120 requests per minute per token |
