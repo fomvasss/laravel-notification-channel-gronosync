@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-09-23
+
 ### Added
 - `GronosyncChannel` — Laravel notification channel
 - `GronosyncMessage` — fluent message builder (text, attachments, buttons, options)
@@ -44,3 +46,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - `GronosyncChannel` now depends on the `Illuminate\Contracts\Events\Dispatcher` contract, so it resolves when events are faked in tests
+
+[Unreleased]: https://github.com/fomvasss/laravel-notification-channel-gronosync/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/fomvasss/laravel-notification-channel-gronosync/releases/tag/v1.0.0
