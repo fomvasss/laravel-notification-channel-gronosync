@@ -20,6 +20,7 @@ Send Laravel notifications via [GronoSync](https://gronosync.com) — a multi-ch
   - [Response](#response)
   - [Errors](#errors)
   - [Contact sync](#upsert-contact)
+  - [Contact and channels](#contact-and-channels)
   - [Receiving messages (webhooks)](#receiving-messages-incoming-webhooks)
 - [Testing](#testing)
 - [Security](#security)
@@ -276,13 +277,49 @@ The contact is matched by `external_id` first, then `email`, then `phone`. If no
 
 Accepted fields: `external_id`, `name`, `lastname`, `email`, `phone`, `birthday`, `gender` (`male` / `female`), `locale`, `timezone`, `comment`, `extra` (object, up to 4 KB). Empty values don't overwrite existing data.
 
-> Updating a contact's `email`, `phone`, `name` or `lastname` this way also fires the `contact.updated` webhook — ignore it on your side if you subscribed to it and sync contacts yourself.
+> Updating a contact's `email`, `phone`, `name` or `lastname` this way also fires the `contact.updated` webhook — if you subscribed to it and sync contacts yourself, skip events carrying your own `source.token_id` (see [Webhook payload](#webhook-payload)).
 
 Response: `{"id": "...", "created": true, "sid": "..."}`. `sendMessage()` also includes `sid` in its response.
 `sid` is the contact's identity token in GronoSync — mainly used for the Telegram continuation link
 (`https://t.me/{bot}?start={sid}`). It's not needed for linking this contact to your site's `chat_contact`
 widget — pass the same `external_id` there (as `data-external-id`) and it resolves to the same contact
 automatically.
+
+### Contact and channels
+
+Read a contact card — by the GronoSync UUID or by your `external_id`:
+
+```php
+$api = app(GronosyncApi::class);
+
+$contact = $api->getContactByExternalId((string) $customer->id); // or $api->getContact($uuid)
+```
+
+Returns the response `data`: contact fields (the same as in the `contact.created` webhook), `sid`, `chat` and `channels`.
+A contact not found in your organization throws `CouldNotSendNotification` with status `404`.
+
+- `chat` — `id`, `status` (`active` / `closed`), `is_blocked`, `is_ai_on`, `unread_count`, `activity_at` and `manager`
+  (`id`, `name`, `lastname`, the organization member's `external_id`), or `null` if nobody is assigned.
+- `channels` — where the contact can be messaged right now: channels they have already used, SMS if a phone is known
+  and email if an email is known. Each has `can_send` and `reply_window_ends_at`: `can_send: false` means the
+  WhatsApp, Facebook or Instagram reply window is closed — you can send once the contact writes first. A messenger
+  the contact has never written in is not listed — you can't start a conversation there.
+
+```php
+$channel = collect($contact['channels'])->firstWhere('can_send', true);
+
+if ($channel) {
+    $api->sendMessage(
+        GronosyncMessage::make()->contactExternalId((string) $customer->id)->channelId($channel['id'])->text('Hello!')
+    );
+}
+```
+
+All organization channels (`id`, `name`, `type`, `status`) — the source of `channelId()` for a contact who hasn't written yet:
+
+```php
+$mail = collect($api->getChannels())->firstWhere('type', 'mail');
+```
 
 ## Receiving messages (incoming webhooks)
 

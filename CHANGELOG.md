@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Webhook payload `source` — who caused the event (`extern_api` with `token_id`/`token_name`, `member`, `system`); skip events carrying your own `token_id` to avoid sync loops
 - `GronosyncMessage::contactExternalId(string $id)` — address a contact by the `external_id` passed to `upsertContact()`, without storing the GronoSync UUID
 - `routeNotificationForGronosyncExternalId()` routing method and `Notification::route('GronosyncExternalId', ...)` — used when `routeNotificationForGronosync()` returns nothing
+- `GronosyncApi::getContact(string $id)` and `getContactByExternalId(string $externalId)` — contact card with chat state (`chat`) and the channels the contact can be messaged in right now (`channels`, with `can_send` / `reply_window_ends_at`)
+- `GronosyncApi::getChannels()` — organization channels, the source of `channelId()`
 
 ### Changed
 - Renamed to `fomvasss/laravel-notification-channel-gronosync` after the service rebrand (ItsChats → GronoSync): namespace `NotificationChannels\Gronosync`, classes `GronosyncChannel` / `GronosyncMessage` / `GronosyncApi` / `GronosyncServiceProvider`, config `services.gronosync`, env `GRONOSYNC_URL` / `GRONOSYNC_TOKEN`, notification methods `toGronosync()` / `routeNotificationForGronosync()`, `NotificationFailed` channel name `Gronosync`. Default API URL: `https://api.gronosync.com`

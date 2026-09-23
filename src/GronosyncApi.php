@@ -46,16 +46,47 @@ class GronosyncApi
     /**
      * @throws CouldNotSendNotification
      */
+    public function getContact(string $id): array
+    {
+        return $this->request('GET', '/api/extern/contacts/' . rawurlencode($id))['data'];
+    }
+
+    /**
+     * @throws CouldNotSendNotification
+     */
+    public function getContactByExternalId(string $externalId): array
+    {
+        return $this->request('GET', '/api/extern/contacts/' . rawurlencode($externalId), ['query' => ['by' => 'external_id']])['data'];
+    }
+
+    /**
+     * @throws CouldNotSendNotification
+     */
+    public function getChannels(): array
+    {
+        return $this->request('GET', '/api/extern/channels')['data'];
+    }
+
+    /**
+     * @throws CouldNotSendNotification
+     */
     protected function post(string $path, array $body): array
     {
+        return $this->request('POST', $path, ['json' => $body]);
+    }
+
+    /**
+     * @throws CouldNotSendNotification
+     */
+    protected function request(string $method, string $path, array $options = []): array
+    {
         try {
-            $response = $this->client->request('POST', rtrim($this->baseUrl, '/') . $path, [
+            $response = $this->client->request($method, rtrim($this->baseUrl, '/') . $path, $options + [
                 'headers' => [
                     'Authorization' => "Bearer {$this->token}",
                     'Accept' => 'application/json',
                     'Content-Type' => 'application/json',
                 ],
-                'json' => $body,
             ]);
 
             $result = json_decode((string) $response->getBody(), true);

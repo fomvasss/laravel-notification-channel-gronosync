@@ -20,6 +20,7 @@
   - [Відповідь](#відповідь)
   - [Помилки](#помилки)
   - [Синхронізація контактів](#upsert-контакту)
+  - [Контакт і канали](#контакт-і-канали)
   - [Отримання повідомлень (вебхуки)](#отримання-повідомлень-вхідні-вебхуки)
 - [Тестування](#тестування)
 - [Безпека](#безпека)
@@ -276,13 +277,49 @@ app(GronosyncApi::class)->upsertContact([
 
 Доступні поля: `external_id`, `name`, `lastname`, `email`, `phone`, `birthday`, `gender` (`male` / `female`), `locale`, `timezone`, `comment`, `extra` (об'єкт, до 4 КБ). Порожні значення наявних даних не перезаписують.
 
-> Зміна `email`, `phone`, `name` чи `lastname` контакту таким способом теж кидає вебхук `contact.updated` — якщо ви на нього підписані й самі синхронізуєте контакти, ігноруйте його у себе.
+> Зміна `email`, `phone`, `name` чи `lastname` контакту таким способом теж кидає вебхук `contact.updated` — якщо ви на нього підписані й самі синхронізуєте контакти, пропускайте події зі своїм `source.token_id` (див. [Структура payload](#структура-payload)).
 
 Відповідь: `{"id": "...", "created": true, "sid": "..."}`. `sendMessage()` теж повертає `sid` у відповіді.
 `sid` — токен ідентичності контакту в GronoSync, потрібен переважно для Telegram-лінку продовження діалогу
 (`https://t.me/{bot}?start={sid}`). Для зв'язку цього контакту з `chat_contact`-віджетом на вашому сайті він
 не потрібен — передайте той самий `external_id` туди (як `data-external-id`), і він автоматично прив'яжеться
 до того ж контакту.
+
+### Контакт і канали
+
+Прочитати картку контакту — за UUID GronoSync або за вашим `external_id`:
+
+```php
+$api = app(GronosyncApi::class);
+
+$contact = $api->getContactByExternalId((string) $customer->id); // або $api->getContact($uuid)
+```
+
+Повертається `data` відповіді: поля контакту (ті самі, що у вебхуку `contact.created`), `sid`, `chat` і `channels`.
+Контакт не знайдено у вашій організації — `CouldNotSendNotification` зі статусом `404`.
+
+- `chat` — `id`, `status` (`active` / `closed`), `is_blocked`, `is_ai_on`, `unread_count`, `activity_at` і `manager`
+  (`id`, `name`, `lastname`, `external_id` учасника організації) або `null`, якщо чат нічий.
+- `channels` — куди можна написати контакту зараз: канали, якими він уже користувався, SMS за наявним телефоном і
+  пошта за наявним email. У кожного — `can_send` і `reply_window_ends_at`: `can_send: false` означає закрите вікно
+  відповіді WhatsApp, Facebook чи Instagram — надіслати можна буде, коли контакт напише сам. Месенджера, у який
+  контакт сам не писав, у списку немає — першим туди не написати.
+
+```php
+$channel = collect($contact['channels'])->firstWhere('can_send', true);
+
+if ($channel) {
+    $api->sendMessage(
+        GronosyncMessage::make()->contactExternalId((string) $customer->id)->channelId($channel['id'])->text('Привіт!')
+    );
+}
+```
+
+Усі канали організації (`id`, `name`, `type`, `status`) — звідси `channelId()` для контакту, що ще не писав:
+
+```php
+$mail = collect($api->getChannels())->firstWhere('type', 'mail');
+```
 
 ## Отримання повідомлень (вхідні вебхуки)
 
