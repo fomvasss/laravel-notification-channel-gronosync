@@ -20,6 +20,7 @@ Send Laravel notifications via [GronoSync](https://gronosync.com) — a multi-ch
   - [Response](#response)
   - [Errors](#errors)
   - [Contact sync](#upsert-contact)
+  - [Form submission (inbound request)](#form-submission-inbound-request)
   - [Contact and channels](#contact-and-channels)
   - [Receiving messages (webhooks)](#receiving-messages-incoming-webhooks)
 - [Testing](#testing)
@@ -143,6 +144,7 @@ Identify the contact with exactly one of `contactId()`, `contactExternalId()` or
 | `previewUrl(bool $val)` | Show URL preview: `true` or `false` (WhatsApp) |
 | `replyToId(string $id)` | ID of the message being replied to |
 | `forwardedFromId(string $id)` | ID of the forwarded message |
+| `metadata(array $metadata)` | Arbitrary data of your system (up to 4 KB), e.g. `['ticket_id' => '1234']`. Not sent to the contact — returned in `data.metadata` of the `chat.message.sent` webhook for this message |
 
 What `to()` means depends on the channel type of `channelId()`. The contact is found by this identifier or created:
 
@@ -273,7 +275,7 @@ app(GronosyncApi::class)->upsertContact([
 ]);
 ```
 
-The contact is matched by `external_id` first, then `email`, then `phone`. If not found — it is created.
+The contact is matched by `external_id` first, then `email`, then `phone`. If not found — it is created. When `external_id` is given, email and phone only match a contact without an `external_id` (e.g. one who wrote in a messenger) — a contact already linked to another `external_id` of yours is never taken over: two of your customers sharing a phone get separate contacts.
 
 Accepted fields: `external_id`, `name`, `lastname`, `email`, `phone`, `birthday`, `gender` (`male` / `female`), `locale`, `timezone`, `comment`, `extra` (object, up to 4 KB). Empty values don't overwrite existing data.
 
@@ -284,6 +286,31 @@ Response: `{"id": "...", "created": true, "sid": "..."}`. `sendMessage()` also i
 (`https://t.me/{bot}?start={sid}`). It's not needed for linking this contact to your site's `chat_contact`
 widget — pass the same `external_id` there (as `data-external-id`) and it resolves to the same contact
 automatically.
+
+### Form submission (inbound request)
+
+A lead from your site, mailbox or CRM can be passed to GronoSync as a request from the contact — as if they filled in the form widget.
+It needs a `form` channel (created in the GronoSync cabinet; get its `id` from `getChannels()`):
+
+```php
+$result = app(GronosyncApi::class)->submitForm([
+    'channel_id' => config('services.gronosync.form_channel_id'),
+    'contact_external_id' => (string) $user->id, // optional — otherwise the contact is matched by email/phone or created
+    'fields' => [
+        'name' => $lead->name,
+        'email' => $lead->email,
+        'phone' => $lead->phone,
+        'message' => $lead->message,
+    ],
+    'metadata' => ['lead_id' => $lead->id],
+]);
+// ['message_id' => '...', 'contact_id' => '...', 'chat_id' => '...', 'sid' => '...']
+```
+
+Unlike `sendMessage()`, this is an **inbound** message: it comes from the contact and is not delivered anywhere. A manager
+is assigned to the chat right away (the AI assistant doesn't answer form submissions) and replies in GronoSync through the
+channel set in the form settings (email or SMS). Fields and required ones come from the form settings; by default `name`
+(required), `email`, `phone`, `message`. An unknown `contact_id` / `contact_external_id` is a `404`. No subscription required.
 
 ### Contact and channels
 
@@ -373,9 +400,9 @@ GronoSync sends a `POST` request with JSON body:
 
 | Event | `data` |
 |---|---|
-| `chat.message.received` / `chat.message.sent` | Message: `id`, `type`, `creator_type`, `content`, `channel`, `member`, `files`, `reply_to`, `created_at`. Messages sent from a Meta ad (Facebook / Instagram / WhatsApp) also have `referral`: `source`, `ad_id`, `post_id`, `title`, `body`, `url`, `ref`, `click_id` (only non-empty keys) |
+| `chat.message.received` / `chat.message.sent` | Message: `id`, `type`, `creator_type`, `content`, `channel`, `member`, `files`, `reply_to`, `created_at`, plus `chat_id` and `contact` (`id`, `external_id`, `name`, `lastname`, `email`, `phone`) — whose message it is. `metadata` — if you passed it via `metadata()` or `submitForm()`. Messages sent from a Meta ad (Facebook / Instagram / WhatsApp) also have `referral`: `source`, `ad_id`, `post_id`, `title`, `body`, `url`, `ref`, `click_id` (only non-empty keys) |
 | `contact.created` / `contact.updated` | Contact: `id`, `name`, `lastname`, `email`, `phone`, `locale`, `timezone`, `extra`, `external_id`, messenger IDs, `created_via` (how the contact appeared: `messenger`, `widget`, `form`, `mail`, `extern_api`, `import`; `null` for older contacts), `created_channel_id`, … Contacts that came from a Meta ad have `ad_referral` (the first ad touch, same keys as `referral` plus `channel_id`, `received_at`), otherwise `null` |
-| `chat.manager_needed` / `chat.closed` | `{"chat_id": "...", "contact": {"id", "name", "lastname", "email", "phone"}}` |
+| `chat.manager_needed` / `chat.closed` | `{"chat_id": "...", "contact": {"id", "external_id", "name", "lastname", "email", "phone"}}` |
 
 ### Verify the request
 
@@ -412,7 +439,7 @@ class GronosyncWebhookController extends Controller
 }
 ```
 
-> **Note:** a delivery is considered failed on a network error, a timeout (10 seconds) or a non-`2xx` response; GronoSync makes up to 3 attempts with a 30-second backoff. Return a `2xx` response as quickly as possible and dispatch heavy processing to a queue. The same event may arrive more than once — every attempt carries the same `event_id`, so store processed ids and skip repeats. `chat.message.sent` also echoes messages you sent through this package: skip them by `message_id` returned from `sendMessage()`, or by `creator_type = extern`.
+> **Note:** a delivery is considered failed on a network error, a timeout (10 seconds) or a non-`2xx` response; GronoSync makes up to 3 attempts with a 30-second backoff. Return a `2xx` response as quickly as possible and dispatch heavy processing to a queue. The same event may arrive more than once — every attempt carries the same `event_id`, so store processed ids and skip repeats. `chat.message.sent` also echoes messages you sent through this package: skip them by `message_id` returned from `sendMessage()`, by your own `metadata`, or by `creator_type = extern`.
 
 ## Testing
 

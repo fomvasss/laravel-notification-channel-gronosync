@@ -23,6 +23,8 @@ class GronosyncMessage
     public ?string $replyToId = null;
     public ?string $forwardedFromId = null;
 
+    public ?array $metadata = null;
+
     public static function make(): static
     {
         return new static();
@@ -128,6 +130,13 @@ class GronosyncMessage
         return $this;
     }
 
+    public function metadata(array $metadata): static
+    {
+        $this->metadata = $metadata;
+
+        return $this;
+    }
+
     public function toArray(): array
     {
         $body = [];
@@ -184,6 +193,10 @@ class GronosyncMessage
 
         if ($this->forwardedFromId !== null) {
             $body['forwarded_from_id'] = $this->forwardedFromId;
+        }
+
+        if ($this->metadata !== null) {
+            $body['metadata'] = $this->metadata;
         }
 
         return $body;

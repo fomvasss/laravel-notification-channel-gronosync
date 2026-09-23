@@ -56,6 +56,30 @@ class GronosyncApiTest extends TestCase
         $this->assertSame(['external_id' => '42', 'timezone' => 'Europe/Kyiv'], $body);
     }
 
+    public function test_submit_form_sends_only_allowed_fields(): void
+    {
+        $api = $this->api([new Response(200, [], json_encode(['message_id' => 'm-1', 'contact_id' => 'c-1']))]);
+
+        $api->submitForm([
+            'channel_id' => 'ch-1',
+            'contact_external_id' => '42',
+            'fields' => ['name' => 'Ivan'],
+            'metadata' => ['lead_id' => 'l-1'],
+            'status' => 'nope',
+        ]);
+
+        /** @var Request $request */
+        $request = $this->history[0]['request'];
+
+        $this->assertSame('https://api.gronosync.test/api/extern/form', (string) $request->getUri());
+        $this->assertSame([
+            'channel_id' => 'ch-1',
+            'contact_external_id' => '42',
+            'fields' => ['name' => 'Ivan'],
+            'metadata' => ['lead_id' => 'l-1'],
+        ], json_decode((string) $request->getBody(), true));
+    }
+
     public function test_get_contact_by_external_id_unwraps_data(): void
     {
         $api = $this->api([new Response(200, [], json_encode(['data' => ['id' => 'c-1', 'external_id' => 'crm 42']]))]);

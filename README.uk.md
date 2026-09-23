@@ -20,6 +20,7 @@
   - [Відповідь](#відповідь)
   - [Помилки](#помилки)
   - [Синхронізація контактів](#upsert-контакту)
+  - [Заявка (вхідне звернення)](#заявка-вхідне-звернення)
   - [Контакт і канали](#контакт-і-канали)
   - [Отримання повідомлень (вебхуки)](#отримання-повідомлень-вхідні-вебхуки)
 - [Тестування](#тестування)
@@ -143,6 +144,7 @@ GronosyncMessage::make()
 | `previewUrl(bool $val)` | Показувати попередній перегляд URL: `true` або `false` (WhatsApp) |
 | `replyToId(string $id)` | ID повідомлення, на яке надсилається відповідь |
 | `forwardedFromId(string $id)` | ID пересланого повідомлення |
+| `metadata(array $metadata)` | Довільні дані вашої системи (до 4 КБ), напр. `['ticket_id' => '1234']`. Контакту не надсилаються — повертаються в `data.metadata` вебхука `chat.message.sent` про це повідомлення |
 
 Що означає `to()`, залежить від типу каналу `channelId()`. Контакт шукається за цим ідентифікатором або створюється:
 
@@ -273,7 +275,7 @@ app(GronosyncApi::class)->upsertContact([
 ]);
 ```
 
-Контакт шукається спочатку за `external_id`, потім за `email`, потім за `phone`. Якщо не знайдено — створюється новий.
+Контакт шукається спочатку за `external_id`, потім за `email`, потім за `phone`. Якщо не знайдено — створюється новий. Якщо передано `external_id`, за email і телефоном знаходиться лише контакт без `external_id` (напр. той, що сам писав у месенджер) — контакт, уже прив'язаний до іншого вашого `external_id`, не перехоплюється: двоє ваших клієнтів зі спільним телефоном отримають окремі контакти.
 
 Доступні поля: `external_id`, `name`, `lastname`, `email`, `phone`, `birthday`, `gender` (`male` / `female`), `locale`, `timezone`, `comment`, `extra` (об'єкт, до 4 КБ). Порожні значення наявних даних не перезаписують.
 
@@ -284,6 +286,31 @@ app(GronosyncApi::class)->upsertContact([
 (`https://t.me/{bot}?start={sid}`). Для зв'язку цього контакту з `chat_contact`-віджетом на вашому сайті він
 не потрібен — передайте той самий `external_id` туди (як `data-external-id`), і він автоматично прив'яжеться
 до того ж контакту.
+
+### Заявка (вхідне звернення)
+
+Лід із вашого сайту, листа чи CRM можна передати в GronoSync як звернення контакта — так, ніби він заповнив форму-віджет.
+Потрібен канал типу `form` (створюється в кабінеті GronoSync; `id` — з `getChannels()`):
+
+```php
+$result = app(GronosyncApi::class)->submitForm([
+    'channel_id' => config('services.gronosync.form_channel_id'),
+    'contact_external_id' => (string) $user->id, // необов'язково — інакше контакт шукається за email/телефоном або створюється
+    'fields' => [
+        'name' => $lead->name,
+        'email' => $lead->email,
+        'phone' => $lead->phone,
+        'message' => $lead->message,
+    ],
+    'metadata' => ['lead_id' => $lead->id],
+]);
+// ['message_id' => '...', 'contact_id' => '...', 'chat_id' => '...', 'sid' => '...']
+```
+
+На відміну від `sendMessage()`, це **вхідне** повідомлення: воно від імені контакта й нікуди не доставляється. Чату одразу
+призначається менеджер (AI на заявки не відповідає), відповідає менеджер у GronoSync — каналом із налаштувань форми
+(email або SMS). Поля та обов'язковість — з налаштувань форми; за замовчуванням `name` (обов'язкове), `email`, `phone`,
+`message`. `contact_id` / `contact_external_id`, що не знайдені, — `404`. Підписки не потребує.
 
 ### Контакт і канали
 
@@ -373,9 +400,9 @@ GronoSync надсилає `POST`-запит з JSON-тілом:
 
 | Подія | `data` |
 |---|---|
-| `chat.message.received` / `chat.message.sent` | Повідомлення: `id`, `type`, `creator_type`, `content`, `channel`, `member`, `files`, `reply_to`, `created_at`. Повідомлення, надіслане з реклами Meta (Facebook / Instagram / WhatsApp), має ще `referral`: `source`, `ad_id`, `post_id`, `title`, `body`, `url`, `ref`, `click_id` (лише непорожні ключі) |
+| `chat.message.received` / `chat.message.sent` | Повідомлення: `id`, `type`, `creator_type`, `content`, `channel`, `member`, `files`, `reply_to`, `created_at`, а також `chat_id` і `contact` (`id`, `external_id`, `name`, `lastname`, `email`, `phone`) — чиє це повідомлення. `metadata` — якщо її передали в `metadata()` чи `submitForm()`. Повідомлення, надіслане з реклами Meta (Facebook / Instagram / WhatsApp), має ще `referral`: `source`, `ad_id`, `post_id`, `title`, `body`, `url`, `ref`, `click_id` (лише непорожні ключі) |
 | `contact.created` / `contact.updated` | Контакт: `id`, `name`, `lastname`, `email`, `phone`, `locale`, `timezone`, `extra`, `external_id`, ID у месенджерах, `created_via` (як з'явився контакт: `messenger`, `widget`, `form`, `mail`, `extern_api`, `import`; `null` для старіших контактів), `created_channel_id`, … Контакт, що прийшов з реклами Meta, має `ad_referral` (перший рекламний дотик, ті самі ключі, що й `referral`, плюс `channel_id`, `received_at`), інакше `null` |
-| `chat.manager_needed` / `chat.closed` | `{"chat_id": "...", "contact": {"id", "name", "lastname", "email", "phone"}}` |
+| `chat.manager_needed` / `chat.closed` | `{"chat_id": "...", "contact": {"id", "external_id", "name", "lastname", "email", "phone"}}` |
 
 ### Верифікація запиту
 
@@ -412,7 +439,7 @@ class GronosyncWebhookController extends Controller
 }
 ```
 
-> **Примітка:** доставка вважається невдалою при мережевій помилці, таймауті (10 секунд) або відповіді не `2xx`; GronoSync робить до 3 спроб з інтервалом 30 секунд. Поверніть відповідь `2xx` якнайшвидше, а важку обробку передайте в чергу. Та сама подія може прийти більше одного разу — кожна спроба несе той самий `event_id`, тож зберігайте оброблені id і пропускайте повтори. `chat.message.sent` приходить і на повідомлення, надіслані через цей пакет: відсіюйте їх за `message_id` з відповіді `sendMessage()` або за `creator_type = extern`.
+> **Примітка:** доставка вважається невдалою при мережевій помилці, таймауті (10 секунд) або відповіді не `2xx`; GronoSync робить до 3 спроб з інтервалом 30 секунд. Поверніть відповідь `2xx` якнайшвидше, а важку обробку передайте в чергу. Та сама подія може прийти більше одного разу — кожна спроба несе той самий `event_id`, тож зберігайте оброблені id і пропускайте повтори. `chat.message.sent` приходить і на повідомлення, надіслані через цей пакет: відсіюйте їх за `message_id` з відповіді `sendMessage()`, за власною `metadata` або за `creator_type = extern`.
 
 ## Тестування
 

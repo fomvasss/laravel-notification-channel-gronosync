@@ -46,6 +46,16 @@ class GronosyncApi
     /**
      * @throws CouldNotSendNotification
      */
+    public function submitForm(array $data): array
+    {
+        $allowed = ['channel_id', 'fields', 'contact_id', 'contact_external_id', 'metadata'];
+
+        return $this->post('/api/extern/form', array_intersect_key($data, array_flip($allowed)));
+    }
+
+    /**
+     * @throws CouldNotSendNotification
+     */
     public function getContact(string $id): array
     {
         return $this->request('GET', '/api/extern/contacts/' . rawurlencode($id))['data'];
