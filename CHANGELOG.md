@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Organization webhook — subscribe to `contact.created`, `chat.message.received`, `chat.message.sent`, `chat.manager_needed`, `chat.closed`, `contact.updated` events; requests carry the webhook secret in an `X-Webhook-Secret` header (see README § Receiving messages)
 - Webhook `chat.message.sent` event — messages from your side to a contact (manager, AI assistant, API, system messages)
 - Webhook payload `event_id` — the same across delivery retries, use it to skip repeats
+- Webhook payload `source` — who caused the event (`extern_api` with `token_id`/`token_name`, `member`, `system`); skip events carrying your own `token_id` to avoid sync loops
 
 ### Changed
 - Renamed to `fomvasss/laravel-notification-channel-gronosync` after the service rebrand (ItsChats → GronoSync): namespace `NotificationChannels\Gronosync`, classes `GronosyncChannel` / `GronosyncMessage` / `GronosyncApi` / `GronosyncServiceProvider`, config `services.gronosync`, env `GRONOSYNC_URL` / `GRONOSYNC_TOKEN`, notification methods `toGronosync()` / `routeNotificationForGronosync()`, `NotificationFailed` channel name `Gronosync`. Default API URL: `https://api.gronosync.com`

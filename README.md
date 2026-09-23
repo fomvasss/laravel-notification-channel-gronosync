@@ -292,6 +292,7 @@ GronoSync sends a `POST` request with JSON body:
     "event_id": "0a1b2c3d-0000-4e2f-b1b2-000000000000",
     "event": "chat.message.received",
     "organization_id": "9d4c1a00-0000-4e2f-b1b2-000000000001",
+    "source": {"type": "system"},
     "data": {
         "id": "9d4c1a00-0000-4e2f-b1b2-000000000002",
         "type": "text",
@@ -306,6 +307,8 @@ GronoSync sends a `POST` request with JSON body:
     }
 }
 ```
+
+`source` tells who caused the event: `{"type": "extern_api", "token_id": 12, "token_name": "CRM"}` (a change made through the API, including this package), `{"type": "member", "member_id": "...", "external_id": "..."}` (a manager in the cabinet or widget) or `{"type": "system"}` (messengers, AI, scheduler). If you sync contacts both ways, skip events carrying your own `token_id` — otherwise `upsertContact()` comes back to you as `contact.updated` and the change loops. `token_id` is the `id` from `GET /api/my/organizations/{id}/extern-tokens`.
 
 `data` shape depends on `event`:
 

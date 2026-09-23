@@ -292,6 +292,7 @@ GronoSync надсилає `POST`-запит з JSON-тілом:
     "event_id": "0a1b2c3d-0000-4e2f-b1b2-000000000000",
     "event": "chat.message.received",
     "organization_id": "9d4c1a00-0000-4e2f-b1b2-000000000001",
+    "source": {"type": "system"},
     "data": {
         "id": "9d4c1a00-0000-4e2f-b1b2-000000000002",
         "type": "text",
@@ -306,6 +307,8 @@ GronoSync надсилає `POST`-запит з JSON-тілом:
     }
 }
 ```
+
+`source` — хто спричинив подію: `{"type": "extern_api", "token_id": 12, "token_name": "CRM"}` (зміна через API — зокрема цим пакетом), `{"type": "member", "member_id": "...", "external_id": "..."}` (менеджер у кабінеті чи віджеті) або `{"type": "system"}` (месенджери, AI, планувальник). Якщо синхронізуєте контакти в обидва боки, пропускайте події зі своїм `token_id` — інакше `upsertContact()` повертатиметься до вас як `contact.updated` і зміна піде по колу. `token_id` — `id` з відповіді `GET /api/my/organizations/{id}/extern-tokens`.
 
 Структура `data` залежить від `event`:
 
