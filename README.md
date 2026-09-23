@@ -96,6 +96,17 @@ class Customer extends Model
 }
 ```
 
+If you sync contacts via `upsertContact()` with an `external_id`, you don't need to store the GronoSync UUID — return your own ID from `routeNotificationForGronosyncExternalId()`:
+
+```php
+public function routeNotificationForGronosyncExternalId(): ?string
+{
+    return (string) $this->id; // the same external_id you pass to upsertContact()
+}
+```
+
+If both methods are defined, `routeNotificationForGronosync()` goes first; the external ID is used only when it returns an empty value. On-demand notifications: `Notification::route('GronosyncExternalId', 'crm-42')->notify(...)`.
+
 Alternatively, set the contact directly on the message:
 
 ```php
@@ -104,11 +115,22 @@ GronosyncMessage::make()
     ->text('Hello!');
 ```
 
+If the contact was synced via `upsertContact()` with an `external_id`, you don't have to store the GronoSync UUID — your own ID is enough:
+
+```php
+GronosyncMessage::make()
+    ->contactExternalId((string) $customer->id)
+    ->text('Hello!');
+```
+
+Identify the contact with exactly one of `contactId()`, `contactExternalId()` or `to()` — the API rejects several at once with `422`.
+
 ### GronosyncMessage methods
 
 | Method | Description |
 |---|---|
 | `contactId(string $id)` | GronoSync contact UUID |
+| `contactExternalId(string $id)` | Contact ID in your system — the `external_id` passed to `upsertContact()`. No need to store the GronoSync UUID |
 | `to(string $identifier)` | Contact identifier for the channel type (see below) — use for contacts not yet known by ID |
 | `channelId(string $id)` | GronoSync channel UUID (required for new contacts) |
 | `text(string $text)` | Message text |
@@ -227,10 +249,10 @@ Common errors. The human-readable `message` is localized and may change — bran
 | Status | `code` | Meaning |
 |---|---|---|
 | `422` | `chat_blocked` | The organization blocked the chat with this contact in GronoSync. The message is neither stored nor delivered. Mark the contact as "do not message" on your side; to send transactional messages (order status, etc.), unblock the chat in GronoSync first |
-| `422` | — | One of: the contact unsubscribed from messages; `channelId()` is missing for a new contact (or a contact without a chat); the contact has no identifier for this channel (e.g. no Telegram ID for a Telegram channel); WhatsApp 24-hour reply window is closed (you can reply only after the contact writes first); `to()` used with a widget/form channel; request validation failed |
+| `422` | — | One of: the contact unsubscribed from messages; `channelId()` is missing for a new contact (or a contact without a chat); the contact has no identifier for this channel (e.g. no Telegram ID for a Telegram channel); the 24-hour reply window of WhatsApp, Facebook Messenger or Instagram is closed (you can reply only after the contact writes first); `to()` used with a widget/form channel; more than one of `contactId()`, `contactExternalId()`, `to()` set; request validation failed |
 | `403` | `organization_suspended` | The organization is suspended by GronoSync. Every request with this token fails the same way until it is reactivated — stop retrying and contact GronoSync support |
 | `403` | — | The organization has no active subscription for outgoing messages |
-| `404` | — | `contactId()` or `channelId()` not found in your organization |
+| `404` | — | `contactId()`, `contactExternalId()` or `channelId()` not found in your organization. `contactExternalId()` never creates a contact — call `upsertContact()` first |
 | `429` | — | Rate limit: 120 requests per minute per token |
 
 ### Upsert contact

@@ -151,4 +151,15 @@ class GronosyncMessageTest extends TestCase
         $this->assertArrayNotHasKey('reply_to_id', $array);
         $this->assertArrayNotHasKey('forwarded_from_id', $array);
     }
+
+    public function test_contact_external_id(): void
+    {
+        $array = GronosyncMessage::make()
+            ->contactExternalId('crm-42')
+            ->text('Hello')
+            ->toArray();
+
+        $this->assertSame('crm-42', $array['contact_external_id']);
+        $this->assertArrayNotHasKey('contact_id', $array);
+    }
 }

@@ -96,6 +96,17 @@ class Customer extends Model
 }
 ```
 
+Якщо контакти синхронізуються через `upsertContact()` з `external_id`, UUID GronoSync можна не зберігати — поверніть свій ID з `routeNotificationForGronosyncExternalId()`:
+
+```php
+public function routeNotificationForGronosyncExternalId(): ?string
+{
+    return (string) $this->id; // той самий external_id, що передається в upsertContact()
+}
+```
+
+Якщо визначено обидва методи, спершу береться `routeNotificationForGronosync()`, а до external ID канал звертається, лише коли той повертає порожнє значення. Сповіщення без моделі: `Notification::route('GronosyncExternalId', 'crm-42')->notify(...)`.
+
 Або вкажіть контакт безпосередньо в повідомленні:
 
 ```php
@@ -104,11 +115,22 @@ GronosyncMessage::make()
     ->text('Привіт!');
 ```
 
+Якщо контакт синхронізовано через `upsertContact()` з `external_id`, UUID GronoSync зберігати не обов'язково — достатньо вашого ID:
+
+```php
+GronosyncMessage::make()
+    ->contactExternalId((string) $customer->id)
+    ->text('Привіт!');
+```
+
+Контакт вказується рівно одним із `contactId()`, `contactExternalId()` або `to()` — кілька одразу API відхиляє з `422`.
+
 ### Методи GronosyncMessage
 
 | Метод | Опис |
 |---|---|
 | `contactId(string $id)` | UUID контакту в GronoSync |
+| `contactExternalId(string $id)` | ID контакту у вашій системі — `external_id`, переданий в `upsertContact()`. Не потрібно зберігати UUID GronoSync |
 | `to(string $identifier)` | Ідентифікатор контакту для типу каналу (див. нижче) — для контактів, чий ID ще невідомий |
 | `channelId(string $id)` | UUID каналу в GronoSync (обов'язковий для нових контактів) |
 | `text(string $text)` | Текст повідомлення |
@@ -227,10 +249,10 @@ Event::listen(function (NotificationFailed $event) {
 | Статус | `code` | Що означає |
 |---|---|---|
 | `422` | `chat_blocked` | Організація заблокувала чат з цим контактом в GronoSync. Повідомлення не зберігається й не доставляється. Позначте контакт у себе як «не писати»; щоб надсилати транзакційні повідомлення (статус замовлення тощо) — спершу розблокуйте чат в GronoSync |
-| `422` | — | Одне з: контакт відписався від повідомлень; не вказано `channelId()` для нового контакту (або контакту без чату); у контакта немає ідентифікатора для цього каналу (напр. Telegram ID для Telegram-каналу); закрите 24-годинне вікно відповіді WhatsApp (відповісти можна після того, як контакт напише сам); `to()` для каналу віджета/форми; не пройшла валідація запиту |
+| `422` | — | Одне з: контакт відписався від повідомлень; не вказано `channelId()` для нового контакту (або контакту без чату); у контакта немає ідентифікатора для цього каналу (напр. Telegram ID для Telegram-каналу); закрите 24-годинне вікно відповіді WhatsApp, Facebook Messenger чи Instagram (відповісти можна після того, як контакт напише сам); `to()` для каналу віджета/форми; вказано більше одного з `contactId()`, `contactExternalId()`, `to()`; не пройшла валідація запиту |
 | `403` | `organization_suspended` | Організацію призупинено в GronoSync. Кожен запит з цим токеном відповідатиме так само, доки її не відновлять — не повторюйте спроби, зверніться в підтримку GronoSync |
 | `403` | — | В організації немає активної підписки на вихідні повідомлення |
-| `404` | — | `contactId()` або `channelId()` не знайдено у вашій організації |
+| `404` | — | `contactId()`, `contactExternalId()` або `channelId()` не знайдено у вашій організації. Контакт за `contactExternalId()` не створюється — спершу `upsertContact()` |
 | `429` | — | Ліміт: 120 запитів на хвилину на токен |
 
 ### Upsert контакту

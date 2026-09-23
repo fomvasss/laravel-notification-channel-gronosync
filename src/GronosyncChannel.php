@@ -29,14 +29,8 @@ class GronosyncChannel
                 throw CouldNotSendNotification::invalidMessageObject($message);
             }
 
-            if ($message->contactId === null && $message->to === null) {
-                $contactId = $notifiable->routeNotificationFor('Gronosync', $notification);
-
-                if (empty($contactId)) {
-                    throw CouldNotSendNotification::invalidReceiver();
-                }
-
-                $message->contactId($contactId);
+            if ($message->contactId === null && $message->contactExternalId === null && $message->to === null) {
+                $this->routeReceiver($notifiable, $notification, $message);
             }
 
             return $this->api->sendMessage($message);
@@ -50,5 +44,23 @@ class GronosyncChannel
         }
 
         return null;
+    }
+
+    // The GronoSync UUID wins: it is exact, while the external ID is only looked up
+    protected function routeReceiver(mixed $notifiable, Notification $notification, GronosyncMessage $message): void
+    {
+        if ($contactId = $notifiable->routeNotificationFor('Gronosync', $notification)) {
+            $message->contactId($contactId);
+
+            return;
+        }
+
+        if ($externalId = $notifiable->routeNotificationFor('GronosyncExternalId', $notification)) {
+            $message->contactExternalId((string) $externalId);
+
+            return;
+        }
+
+        throw CouldNotSendNotification::invalidReceiver();
     }
 }

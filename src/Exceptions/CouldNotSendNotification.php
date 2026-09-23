@@ -24,7 +24,7 @@ class CouldNotSendNotification extends \Exception
     public static function invalidReceiver(): static
     {
         return new static(
-            'The notifiable did not have a receiving contact ID. Add a `routeNotificationForGronosync` method or set `contactId()` on the message.'
+            'The notifiable did not have a receiving contact ID. Add a `routeNotificationForGronosync` / `routeNotificationForGronosyncExternalId` method or set `contactId()` / `contactExternalId()` on the message.'
         );
     }
 

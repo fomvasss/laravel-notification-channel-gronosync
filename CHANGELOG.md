@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Webhook `chat.message.sent` event — messages from your side to a contact (manager, AI assistant, API, system messages)
 - Webhook payload `event_id` — the same across delivery retries, use it to skip repeats
 - Webhook payload `source` — who caused the event (`extern_api` with `token_id`/`token_name`, `member`, `system`); skip events carrying your own `token_id` to avoid sync loops
+- `GronosyncMessage::contactExternalId(string $id)` — address a contact by the `external_id` passed to `upsertContact()`, without storing the GronoSync UUID
+- `routeNotificationForGronosyncExternalId()` routing method and `Notification::route('GronosyncExternalId', ...)` — used when `routeNotificationForGronosync()` returns nothing
 
 ### Changed
 - Renamed to `fomvasss/laravel-notification-channel-gronosync` after the service rebrand (ItsChats → GronoSync): namespace `NotificationChannels\Gronosync`, classes `GronosyncChannel` / `GronosyncMessage` / `GronosyncApi` / `GronosyncServiceProvider`, config `services.gronosync`, env `GRONOSYNC_URL` / `GRONOSYNC_TOKEN`, notification methods `toGronosync()` / `routeNotificationForGronosync()`, `NotificationFailed` channel name `Gronosync`. Default API URL: `https://api.gronosync.com`
@@ -27,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sending a message to a contact whose chat is blocked in GronoSync now fails with `422` and `code: chat_blocked`; previously it was delivered
 - `to()` is resolved by the channel type: phone number for SMS and e-chat WhatsApp channels (previously stored as email), any phone format accepted; widget/form channels reject `to` with `422`
 - Organization webhook deliveries are retried (up to 3 attempts, 30 s apart) on non-`2xx` responses and timeouts (10 s), not only on network errors
+- `contactId()`, `contactExternalId()` and `to()` are mutually exclusive — setting more than one fails with `422`; previously `contactId()` silently won over `to()`
 - Every API request of a suspended organization fails with `403` and `code: organization_suspended` (both `sendMessage()` and `upsertContact()`); organization webhooks are not delivered while it is suspended
 
 - Contact payloads (webhooks `contact.created` / `contact.updated`) include `created_via` and `created_channel_id` — how and through which channel the contact appeared

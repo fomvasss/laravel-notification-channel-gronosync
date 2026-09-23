@@ -7,6 +7,7 @@ namespace NotificationChannels\Gronosync;
 class GronosyncMessage
 {
     public ?string $contactId = null;
+    public ?string $contactExternalId = null;
     public ?string $to = null;
     public ?string $channelId = null;
     public ?string $text = null;
@@ -30,6 +31,13 @@ class GronosyncMessage
     public function contactId(string $id): static
     {
         $this->contactId = $id;
+
+        return $this;
+    }
+
+    public function contactExternalId(string $id): static
+    {
+        $this->contactExternalId = $id;
 
         return $this;
     }
@@ -126,6 +134,10 @@ class GronosyncMessage
 
         if ($this->contactId !== null) {
             $body['contact_id'] = $this->contactId;
+        }
+
+        if ($this->contactExternalId !== null) {
+            $body['contact_external_id'] = $this->contactExternalId;
         }
 
         if ($this->to !== null) {
