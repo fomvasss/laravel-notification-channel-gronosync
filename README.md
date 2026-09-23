@@ -312,7 +312,7 @@ is assigned to the chat right away (the AI assistant doesn't answer form submiss
 channel set in the form settings (email or SMS). An unknown `contact_id` / `contact_external_id` is a `404`. No subscription required.
 
 Fields are arbitrary keys, at least one must be filled: required fields from the form settings are not enforced here. The
-settings provide labels and types; a field outside them is labelled by its key, while `email` and `phone` are recognized by
+settings provide labels and types; a field outside them is labelled by its key as a headline (`work_email` → `Work Email`), while `email` and `phone` are recognized by
 name. Format is always checked (`422`): email, phone (10–15 digits, stored as digits only), length up to 255 characters
 (`textarea` and fields outside the settings — up to 5000), at most 20 fields. The contact's email and phone come from the
 first fields of that type, the name — from `name`. In the `chat.message.received` webhook fields arrive both as text and
