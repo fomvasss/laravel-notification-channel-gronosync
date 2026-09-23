@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `GronosyncMessage::metadata(array $metadata)` — arbitrary data returned as `data.metadata` in the `chat.message.sent` webhook for that message
 - Webhook `chat.message.received` / `chat.message.sent` payload now includes `chat_id` and `contact` (`id`, `external_id`, `name`, `lastname`, `email`, `phone`)
 - Webhook `chat.manager_needed` / `chat.closed` `contact` now includes `external_id`
+- Webhook `chat.message.received` for a form submission includes `form_fields` — `[{name, label, type, value}]`
 
 ### Changed
 - Renamed to `fomvasss/laravel-notification-channel-gronosync` after the service rebrand (ItsChats → GronoSync): namespace `NotificationChannels\Gronosync`, classes `GronosyncChannel` / `GronosyncMessage` / `GronosyncApi` / `GronosyncServiceProvider`, config `services.gronosync`, env `GRONOSYNC_URL` / `GRONOSYNC_TOKEN`, notification methods `toGronosync()` / `routeNotificationForGronosync()`, `NotificationFailed` channel name `Gronosync`. Default API URL: `https://api.gronosync.com`

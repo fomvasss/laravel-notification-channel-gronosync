@@ -309,8 +309,14 @@ $result = app(GronosyncApi::class)->submitForm([
 
 На відміну від `sendMessage()`, це **вхідне** повідомлення: воно від імені контакта й нікуди не доставляється. Чату одразу
 призначається менеджер (AI на заявки не відповідає), відповідає менеджер у GronoSync — каналом із налаштувань форми
-(email або SMS). Поля та обов'язковість — з налаштувань форми; за замовчуванням `name` (обов'язкове), `email`, `phone`,
-`message`. `contact_id` / `contact_external_id`, що не знайдені, — `404`. Підписки не потребує.
+(email або SMS). `contact_id` / `contact_external_id`, що не знайдені, — `404`. Підписки не потребує.
+
+Поля — довільні ключі, досить хоча б одного заповненого: обов'язковість із налаштувань форми тут не діє. Налаштування
+дають підписи й типи; поле поза ними підписується своїм ключем, а `email` і `phone` розпізнаються за назвою. Формат
+перевіряється завжди (`422`): email, телефон (10–15 цифр, зберігається лише цифрами), довжина до 255 символів
+(`textarea` і поля поза налаштуваннями — до 5000), не більше 20 полів. Email і телефон контакта беруться з перших полів
+відповідного типу, ім'я — з `name`. У вебхуку `chat.message.received` поля приходять і текстом, і окремо — у
+`form_fields` (`[{"name", "label", "type", "value"}]`).
 
 ### Контакт і канали
 
@@ -400,7 +406,7 @@ GronoSync надсилає `POST`-запит з JSON-тілом:
 
 | Подія | `data` |
 |---|---|
-| `chat.message.received` / `chat.message.sent` | Повідомлення: `id`, `type`, `creator_type`, `content`, `channel`, `member`, `files`, `reply_to`, `created_at`, а також `chat_id` і `contact` (`id`, `external_id`, `name`, `lastname`, `email`, `phone`) — чиє це повідомлення. `metadata` — якщо її передали в `metadata()` чи `submitForm()`. Повідомлення, надіслане з реклами Meta (Facebook / Instagram / WhatsApp), має ще `referral`: `source`, `ad_id`, `post_id`, `title`, `body`, `url`, `ref`, `click_id` (лише непорожні ключі) |
+| `chat.message.received` / `chat.message.sent` | Повідомлення: `id`, `type`, `creator_type`, `content`, `channel`, `member`, `files`, `reply_to`, `created_at`, а також `chat_id` і `contact` (`id`, `external_id`, `name`, `lastname`, `email`, `phone`) — чиє це повідомлення. Заявка з форми має ще `form_fields`. `metadata` — якщо її передали в `metadata()` чи `submitForm()`. Повідомлення, надіслане з реклами Meta (Facebook / Instagram / WhatsApp), має ще `referral`: `source`, `ad_id`, `post_id`, `title`, `body`, `url`, `ref`, `click_id` (лише непорожні ключі) |
 | `contact.created` / `contact.updated` | Контакт: `id`, `name`, `lastname`, `email`, `phone`, `locale`, `timezone`, `extra`, `external_id`, ID у месенджерах, `created_via` (як з'явився контакт: `messenger`, `widget`, `form`, `mail`, `extern_api`, `import`; `null` для старіших контактів), `created_channel_id`, … Контакт, що прийшов з реклами Meta, має `ad_referral` (перший рекламний дотик, ті самі ключі, що й `referral`, плюс `channel_id`, `received_at`), інакше `null` |
 | `chat.manager_needed` / `chat.closed` | `{"chat_id": "...", "contact": {"id", "external_id", "name", "lastname", "email", "phone"}}` |
 

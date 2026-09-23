@@ -309,8 +309,14 @@ $result = app(GronosyncApi::class)->submitForm([
 
 Unlike `sendMessage()`, this is an **inbound** message: it comes from the contact and is not delivered anywhere. A manager
 is assigned to the chat right away (the AI assistant doesn't answer form submissions) and replies in GronoSync through the
-channel set in the form settings (email or SMS). Fields and required ones come from the form settings; by default `name`
-(required), `email`, `phone`, `message`. An unknown `contact_id` / `contact_external_id` is a `404`. No subscription required.
+channel set in the form settings (email or SMS). An unknown `contact_id` / `contact_external_id` is a `404`. No subscription required.
+
+Fields are arbitrary keys, at least one must be filled: required fields from the form settings are not enforced here. The
+settings provide labels and types; a field outside them is labelled by its key, while `email` and `phone` are recognized by
+name. Format is always checked (`422`): email, phone (10–15 digits, stored as digits only), length up to 255 characters
+(`textarea` and fields outside the settings — up to 5000), at most 20 fields. The contact's email and phone come from the
+first fields of that type, the name — from `name`. In the `chat.message.received` webhook fields arrive both as text and
+separately in `form_fields` (`[{"name", "label", "type", "value"}]`).
 
 ### Contact and channels
 
@@ -400,7 +406,7 @@ GronoSync sends a `POST` request with JSON body:
 
 | Event | `data` |
 |---|---|
-| `chat.message.received` / `chat.message.sent` | Message: `id`, `type`, `creator_type`, `content`, `channel`, `member`, `files`, `reply_to`, `created_at`, plus `chat_id` and `contact` (`id`, `external_id`, `name`, `lastname`, `email`, `phone`) — whose message it is. `metadata` — if you passed it via `metadata()` or `submitForm()`. Messages sent from a Meta ad (Facebook / Instagram / WhatsApp) also have `referral`: `source`, `ad_id`, `post_id`, `title`, `body`, `url`, `ref`, `click_id` (only non-empty keys) |
+| `chat.message.received` / `chat.message.sent` | Message: `id`, `type`, `creator_type`, `content`, `channel`, `member`, `files`, `reply_to`, `created_at`, plus `chat_id` and `contact` (`id`, `external_id`, `name`, `lastname`, `email`, `phone`) — whose message it is. Form submissions also have `form_fields`. `metadata` — if you passed it via `metadata()` or `submitForm()`. Messages sent from a Meta ad (Facebook / Instagram / WhatsApp) also have `referral`: `source`, `ad_id`, `post_id`, `title`, `body`, `url`, `ref`, `click_id` (only non-empty keys) |
 | `contact.created` / `contact.updated` | Contact: `id`, `name`, `lastname`, `email`, `phone`, `locale`, `timezone`, `extra`, `external_id`, messenger IDs, `created_via` (how the contact appeared: `messenger`, `widget`, `form`, `mail`, `extern_api`, `import`; `null` for older contacts), `created_channel_id`, … Contacts that came from a Meta ad have `ad_referral` (the first ad touch, same keys as `referral` plus `channel_id`, `received_at`), otherwise `null` |
 | `chat.manager_needed` / `chat.closed` | `{"chat_id": "...", "contact": {"id", "external_id", "name", "lastname", "email", "phone"}}` |
 
