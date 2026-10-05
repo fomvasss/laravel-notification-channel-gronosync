@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `GronosyncServiceProvider` — auto-discovery via `services.gronosync` config
 - `CouldNotSendNotification` exception with factory methods
 - `CouldNotSendNotification::getStatusCode()`, `getErrorCode()` and `getResponse()` — the API error response (e.g. `code: chat_blocked`), no longer truncated in the exception message
+- `422` error codes `contact_unsubscribed` (opted out in all channels), `channel_blocked` (blocked the bot / unreachable in this channel) and `channel_unsubscribed` (unsubscribed from this channel) — the last two leave other channels of the contact working
 - `GronosyncMessage::replyToId(string $id)` and `forwardedFromId(string $id)` — reply/forward a message
 - `upsertContact()` and `sendMessage()` responses now include `sid` (contact identity token, e.g. for Telegram continuation links)
 - Organization webhook — subscribe to `contact.created`, `chat.message.received`, `chat.message.sent`, `chat.manager_needed`, `chat.closed`, `contact.updated` events; requests carry the webhook secret in an `X-Webhook-Secret` header (see README § Receiving messages)
