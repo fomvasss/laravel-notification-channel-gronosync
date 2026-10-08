@@ -142,7 +142,7 @@ What `to` means for each channel type, and when `channelId()` is required — [M
 | `getContact(string $id)` / `getContactByExternalId(string $externalId)` | [`GET /contacts/{id}`](https://docs.gronosync.com/api/contacts/) — returns `data` |
 | `getChannels()` | [`GET /channels`](https://docs.gronosync.com/api/channels/) — returns `data` |
 | `submitForm(array $data, ?string $idempotencyKey = null)` | [`POST /form`](https://docs.gronosync.com/api/forms/), the key goes as `Idempotency-Key` |
-| `sendIncoming(array $data, ?string $idempotencyKey = null)` | [`POST /incoming`](https://docs.gronosync.com/api/incoming/) — a message from the client out of your own system (tickets, chat), the key goes as `Idempotency-Key` |
+| `sendIncoming(array $data, ?string $idempotencyKey = null)` | [`POST /incoming`](https://docs.gronosync.com/api/incoming/) — a message from the client out of your own system (tickets, chat), the key goes as `Idempotency-Key`. `message.text` is plain text, no HTML: line break — `\n`, links — as full URLs |
 
 ```php
 use NotificationChannels\Gronosync\GronosyncApi;
