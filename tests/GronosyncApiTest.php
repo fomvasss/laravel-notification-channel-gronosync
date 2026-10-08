@@ -92,6 +92,32 @@ class GronosyncApiTest extends TestCase
         $this->assertFalse($this->history[1]['request']->hasHeader('Idempotency-Key'));
     }
 
+    public function test_send_incoming_filters_fields_and_sends_idempotency_key(): void
+    {
+        $api = $this->api([new Response(200, [], json_encode(['message_id' => 'm-1', 'contact_id' => 'c-1', 'chat_id' => 'ch-9']))]);
+
+        $result = $api->sendIncoming([
+            'channel_id' => 'ch-1',
+            'contact_external_id' => '42',
+            'message' => ['text' => 'Hi'],
+            'metadata' => ['ticket_id' => 't-1'],
+            'creator_type' => 'nope',
+        ], 'ticketmessage-1');
+
+        /** @var Request $request */
+        $request = $this->history[0]['request'];
+
+        $this->assertSame('m-1', $result['message_id']);
+        $this->assertSame('https://api.gronosync.test/api/extern/incoming', (string) $request->getUri());
+        $this->assertSame('ticketmessage-1', $request->getHeaderLine('Idempotency-Key'));
+        $this->assertSame([
+            'channel_id' => 'ch-1',
+            'contact_external_id' => '42',
+            'message' => ['text' => 'Hi'],
+            'metadata' => ['ticket_id' => 't-1'],
+        ], json_decode((string) $request->getBody(), true));
+    }
+
     public function test_get_contact_by_external_id_unwraps_data(): void
     {
         $api = $this->api([new Response(200, [], json_encode(['data' => ['id' => 'c-1', 'external_id' => 'crm 42']]))]);

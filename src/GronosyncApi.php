@@ -57,6 +57,21 @@ class GronosyncApi
     }
 
     /**
+     * Message from the contact out of your own system (tickets, in-app chat) into a `chat_contact` channel.
+     *
+     * @throws CouldNotSendNotification
+     */
+    public function sendIncoming(array $data, ?string $idempotencyKey = null): array
+    {
+        $allowed = ['channel_id', 'contact_id', 'contact_external_id', 'message', 'reply_to_id', 'metadata'];
+
+        return $this->request('POST', '/api/extern/incoming', [
+            'json' => array_intersect_key($data, array_flip($allowed)),
+            'headers' => array_filter(['Idempotency-Key' => $idempotencyKey]),
+        ]);
+    }
+
+    /**
      * @throws CouldNotSendNotification
      */
     public function getContact(string $id): array

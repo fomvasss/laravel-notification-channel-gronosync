@@ -142,6 +142,7 @@ GronosyncMessage::make()->to('+380991234567')->channelId($smsChannelId)->text('�
 | `getContact(string $id)` / `getContactByExternalId(string $externalId)` | [`GET /contacts/{id}`](https://docs.gronosync.com/api/contacts/) — повертає `data` |
 | `getChannels()` | [`GET /channels`](https://docs.gronosync.com/api/channels/) — повертає `data` |
 | `submitForm(array $data, ?string $idempotencyKey = null)` | [`POST /form`](https://docs.gronosync.com/api/forms/), ключ іде заголовком `Idempotency-Key` |
+| `sendIncoming(array $data, ?string $idempotencyKey = null)` | [`POST /incoming`](https://docs.gronosync.com/api/incoming/) — повідомлення від клієнта з вашої системи (тікети, чат), ключ іде заголовком `Idempotency-Key` |
 
 ```php
 use NotificationChannels\Gronosync\GronosyncApi;
@@ -159,7 +160,7 @@ $api->submitForm([
 ], idempotencyKey: "lead-{$lead->id}");
 ```
 
-Невідомі ключі в `upsertContact()` / `submitForm()` відкидаються перед відправкою.
+Невідомі ключі в `upsertContact()` / `submitForm()` / `sendIncoming()` відкидаються перед відправкою.
 
 ## Помилки
 
