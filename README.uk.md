@@ -11,23 +11,25 @@
 
 [Сайт](https://gronosync.com) · [Кабінет клієнта](https://app.gronosync.com) · API: `https://api.gronosync.com`
 
+## Документація
+
+Цей README — про Laravel-пакет. Усе про сам сервіс GronoSync — на **[docs.gronosync.com](https://docs.gronosync.com)**:
+
+- [Extern API](https://docs.gronosync.com/api/overview/) — контакти, повідомлення, заявки, канали, ліміти
+- [Помилки й коди](https://docs.gronosync.com/api/errors/) — кожен статус і `code` і що з ними робити
+- [Вебхуки](https://docs.gronosync.com/webhooks/overview/) — події, payload з повними прикладами JSON, перевірка, повтори
+- [Віджети на сайт](https://docs.gronosync.com/widgets/overview/) — чат, форма й чат менеджера для вашої CRM
+- [Ключі API](https://docs.gronosync.com/authentication/) · [Зміни API](https://docs.gronosync.com/changelog/)
+
 ## Зміст
 
 - [Встановлення](#встановлення)
 - [Налаштування](#налаштування)
-- [Використання](#використання)
-  - [Надсилання нотифікацій](#клас-нотифікації)
-  - [Відповідь](#відповідь)
-  - [Помилки](#помилки)
-  - [Синхронізація контактів](#upsert-контакту)
-  - [Заявка (вхідне звернення)](#заявка-вхідне-звернення)
-  - [Контакт і канали](#контакт-і-канали)
-  - [Отримання повідомлень (вебхуки)](#отримання-повідомлень-вхідні-вебхуки)
+- [Надсилання сповіщень](#надсилання-сповіщень)
+- [Виклик API напряму](#виклик-api-напряму)
+- [Помилки](#помилки)
+- [Отримання вебхуків](#отримання-вебхуків)
 - [Тестування](#тестування)
-- [Безпека](#безпека)
-- [Участь у розробці](#участь-у-розробці)
-- [Автори](#автори)
-- [Ліцензія](#ліцензія)
 
 ## Встановлення
 
@@ -53,12 +55,9 @@ GRONOSYNC_TOKEN=your_organization_token
 ],
 ```
 
-`token` — це **токен організації** для API, створюється в [кабінеті GronoSync](https://app.gronosync.com) у налаштуваннях організації →
-Extern API tokens. Значення показується лише один раз, при створенні — збережіть його одразу.
+`token` — ключ API організації: [кабінет GronoSync](https://app.gronosync.com) → **Налаштування → Розширення → API**. Показується лише раз, при створенні. Див. [Ключі API](https://docs.gronosync.com/authentication/).
 
-## Використання
-
-### Клас нотифікації
+## Надсилання сповіщень
 
 ```php
 use NotificationChannels\Gronosync\GronosyncChannel;
@@ -84,154 +83,93 @@ class OrderConfirmed extends \Illuminate\Notifications\Notification
 
 ### Маршрутизація
 
-Додайте метод `routeNotificationForGronosync()` до вашої notifiable-моделі:
+Поверніть контакт із notifiable-моделі — UUID у GronoSync або ваш ID, якщо синхронізуєте контакти через `upsertContact()` з `external_id`:
 
 ```php
-class Customer extends Model
+public function routeNotificationForGronosync(): ?string
 {
-    use Notifiable;
-
-    public function routeNotificationForGronosync(): ?string
-    {
-        return $this->gronosync_contact_id; // UUID контакту в GronoSync
-    }
+    return $this->gronosync_contact_id; // UUID контакту в GronoSync
 }
-```
 
-Якщо контакти синхронізуються через `upsertContact()` з `external_id`, UUID GronoSync можна не зберігати — поверніть свій ID з `routeNotificationForGronosyncExternalId()`:
-
-```php
 public function routeNotificationForGronosyncExternalId(): ?string
 {
     return (string) $this->id; // той самий external_id, що передається в upsertContact()
 }
 ```
 
-Якщо визначено обидва методи, спершу береться `routeNotificationForGronosync()`, а до external ID канал звертається, лише коли той повертає порожнє значення. Сповіщення без моделі: `Notification::route('GronosyncExternalId', 'crm-42')->notify(...)`.
+Якщо визначено обидва, спершу береться `routeNotificationForGronosync()`, а external ID — лише коли той повертає порожнє значення. Без моделі: `Notification::route('GronosyncExternalId', 'crm-42')->notify(...)`.
 
-Або вкажіть контакт безпосередньо в повідомленні:
-
-```php
-GronosyncMessage::make()
-    ->contactId($customer->gronosync_contact_id)
-    ->text('Привіт!');
-```
-
-Якщо контакт синхронізовано через `upsertContact()` з `external_id`, UUID GronoSync зберігати не обов'язково — достатньо вашого ID:
+Або вкажіть контакт у повідомленні — рівно одним із `contactId()`, `contactExternalId()`, `to()`:
 
 ```php
-GronosyncMessage::make()
-    ->contactExternalId((string) $customer->id)
-    ->text('Привіт!');
+GronosyncMessage::make()->contactExternalId((string) $customer->id)->text('Привіт!');
+
+// новий контакт за ідентифікатором у каналі (телефон, Telegram ID, email…)
+GronosyncMessage::make()->to('+380991234567')->channelId($smsChannelId)->text('Ласкаво просимо!');
 ```
 
-Контакт вказується рівно одним із `contactId()`, `contactExternalId()` або `to()` — кілька одразу API відхиляє з `422`.
+Що означає `to` для кожного типу каналу і коли потрібен `channelId()` — [Повідомлення](https://docs.gronosync.com/api/messages/).
 
 ### Методи GronosyncMessage
 
 | Метод | Опис |
 |---|---|
 | `contactId(string $id)` | UUID контакту в GronoSync |
-| `contactExternalId(string $id)` | ID контакту у вашій системі — `external_id`, переданий в `upsertContact()`. Не потрібно зберігати UUID GronoSync |
-| `to(string $identifier)` | Ідентифікатор контакту для типу каналу (див. нижче) — для контактів, чий ID ще невідомий |
-| `channelId(string $id)` | UUID каналу в GronoSync (обов'язковий для нових контактів) |
+| `contactExternalId(string $id)` | ID контакту у вашій системі — `external_id`, переданий в `upsertContact()` |
+| `to(string $identifier)` | Ідентифікатор контакту в каналі — для контактів, яких ще немає |
+| `channelId(string $id)` | UUID каналу в GronoSync (обов'язковий з `to()`) |
 | `text(string $text)` | Текст повідомлення |
-| `attachment(string $url, ?string $filename, string $type)` | Додати один файл. Типи: `image`, `audio`, `video`, `document` |
-| `attachments(array $items, string $type)` | Додати кілька файлів одразу |
+| `attachment(string $url, ?string $filename, string $type)` | Додати файл. Типи: `image`, `audio`, `video`, `document` |
+| `attachments(array $items, string $type)` | Додати кілька файлів |
 | `button(string $title, string $urlOrCallback, string $type)` | Додати кнопку. Типи: `web_url`, `callback` |
-| `buttons(array $items)` | Додати кілька кнопок одразу |
-| `parseMode(string $mode)` | Форматування тексту: `html` або `markdown` (Telegram) |
-| `previewUrl(bool $val)` | Показувати попередній перегляд URL: `true` або `false` (WhatsApp) |
-| `replyToId(string $id)` | ID повідомлення, на яке надсилається відповідь |
-| `forwardedFromId(string $id)` | ID пересланого повідомлення |
-| `metadata(array $metadata)` | Довільні дані вашої системи (до 4 КБ), напр. `['ticket_id' => '1234']`. Контакту не надсилаються — повертаються в `data.metadata` вебхука `chat.message.sent` про це повідомлення |
+| `buttons(array $items)` | Додати кілька кнопок |
+| `parseMode(string $mode)` | `html` або `markdown` (Telegram) |
+| `previewUrl(bool $val)` | Прев'ю посилань (WhatsApp) |
+| `replyToId(string $id)` | Повідомлення, на яке це відповідь |
+| `forwardedFromId(string $id)` | Переслане повідомлення |
+| `metadata(array $metadata)` | Ваші дані (до 4 КБ) — повертаються в `data.metadata` вебхука `chat.message.sent` |
 
-Що означає `to()`, залежить від типу каналу `channelId()`. Контакт шукається за цим ідентифікатором або створюється:
+## Виклик API напряму
 
-| Тип каналу | `to` |
+`GronosyncApi` — тонкий клієнт [Extern API](https://docs.gronosync.com/api/overview/), повертає розібрану відповідь.
+
+| Метод | Ендпоінт |
 |---|---|
-| `telegram` | Telegram user ID |
-| `whatsapp` | Номер телефону |
-| `instagram` / `facebook` | ID користувача Instagram / Facebook (page-scoped) |
-| `mail` | Email |
-| `sms_turbosms` | Номер телефону |
-| `whatsapp_echat` / `viber_echat` | Номер телефону |
-| `telegram_echat` | ID контакту в провайдера |
-
-Номери можна передавати з будь-якими розділювачами (`+38 (050) 111-22-33`) — зберігаються лише цифрами. Для `sms_turbosms`, `whatsapp_echat` і `viber_echat` номер має бути повним, з кодом країни: місцевий запис (`0501112233`) відхиляється з `422` і `code: invalid_phone`, бо провайдер за ним не доставить. Канали віджетів і форм (`chat_contact`, `chat_manager`, `form`) `to` не приймають — використовуйте `contactId()`.
-
-`whatsapp_echat` і `viber_echat` — особисті номери, тож ними можна написати контакту **першими**: якщо контакт з таким номером телефону вже є (імпорт, форма, SMS), повідомлення піде йому, а не новому контакту. З `contactId()` достатньо, щоб у контакта був заповнений телефон.
-
-### Відповідь
-
-`GronosyncApi::sendMessage()` повертає відповідь API (через канал нотифікацій Laravel її не віддає):
-
-```json
-{
-    "message": "Операцію успішно виконано.",
-    "message_id": "550e8400-e29b-41d4-a716-446655440000",
-    "contact_id": "7f3e1200-0000-4c2d-b8b1-000000000001",
-    "contact_created": false,
-    "chat_id": "9d8c7b6a-0000-4e2f-c9c2-000000000002",
-    "sid": "018e1234-0000-7000-a000-000000000001"
-}
-```
-
-Збережіть `contact_id`, щоб надалі писати тому самому контакту без `to`.
-
-### Приклади
-
-**Повідомлення із зображенням та кнопкою:**
+| `sendMessage(GronosyncMessage $message)` | [`POST /message`](https://docs.gronosync.com/api/messages/) |
+| `upsertContact(array $data)` | [`POST /contacts`](https://docs.gronosync.com/api/contacts/) |
+| `getContact(string $id)` / `getContactByExternalId(string $externalId)` | [`GET /contacts/{id}`](https://docs.gronosync.com/api/contacts/) — повертає `data` |
+| `getChannels()` | [`GET /channels`](https://docs.gronosync.com/api/channels/) — повертає `data` |
+| `submitForm(array $data, ?string $idempotencyKey = null)` | [`POST /form`](https://docs.gronosync.com/api/forms/), ключ іде заголовком `Idempotency-Key` |
 
 ```php
-GronosyncMessage::make()
-    ->contactId($notifiable->gronosync_contact_id)
-    ->text('Ваш рахунок готовий.')
-    ->attachment('https://shop.com/invoice/123.pdf', 'invoice.pdf')
-    ->button('Завантажити', 'https://shop.com/invoice/123.pdf');
+use NotificationChannels\Gronosync\GronosyncApi;
+
+$api = app(GronosyncApi::class);
+
+$api->upsertContact(['external_id' => (string) $user->id, 'name' => $user->name, 'phone' => $user->phone]);
+
+$contact = $api->getContactByExternalId((string) $user->id);
+$channel = collect($contact['channels'])->firstWhere('can_send', true);
+
+$api->submitForm([
+    'channel_id' => config('services.gronosync.form_channel_id'),
+    'fields' => ['name' => $lead->name, 'email' => $lead->email, 'message' => $lead->message],
+], idempotencyKey: "lead-{$lead->id}");
 ```
 
-**Telegram з HTML-форматуванням:**
+Невідомі ключі в `upsertContact()` / `submitForm()` відкидаються перед відправкою.
 
-```php
-GronosyncMessage::make()
-    ->contactId($notifiable->gronosync_contact_id)
-    ->text('<b>Замовлення підтверджено</b> — дякуємо!')
-    ->parseMode('html');
-```
-
-**Новий контакт через ідентифікатор месенджера:**
-
-```php
-GronosyncMessage::make()
-    ->to('380991234567')          // телефон / telegram_id тощо
-    ->channelId($channelUuid)
-    ->text('Ласкаво просимо!');
-```
-
-**Кнопки зі зворотним викликом:**
-
-```php
-GronosyncMessage::make()
-    ->contactId($notifiable->gronosync_contact_id)
-    ->text('Підтвердити замовлення?')
-    ->button('Так', 'order_confirm_123', 'callback')
-    ->button('Ні', 'order_cancel_123', 'callback');
-```
-
-### Помилки
+## Помилки
 
 Збої повертаються як `CouldNotSendNotification`:
 
-- **Прямий виклик `GronosyncApi`** (`sendMessage()`, `upsertContact()`) — виняток кидається.
-- **Через канал нотифікацій** — виняток **не** кидається: диспатчиться подія Laravel `NotificationFailed` з винятком у `$event->data['exception']`.
-
-Виняток дає доступ до відповіді API:
+- **Прямий виклик `GronosyncApi`** — виняток кидається.
+- **Через канал сповіщень** — виняток **не** кидається: диспатчиться подія Laravel `NotificationFailed` з винятком у `$event->data['exception']`.
 
 | Метод | Повертає |
 |---|---|
 | `getStatusCode()` | HTTP-статус, `null` при мережевій помилці / таймауті |
-| `getErrorCode()` | Машинний `code` з відповіді (напр. `chat_blocked`) або `null` |
+| `getErrorCode()` | Машинний `code` (напр. `chat_blocked`) або `null` |
 | `getResponse()` | Розібране JSON-тіло відповіді з помилкою або `null` |
 
 ```php
@@ -249,222 +187,11 @@ Event::listen(function (NotificationFailed $event) {
 });
 ```
 
-Типові помилки. Людський текст `message` локалізований і може змінюватись — орієнтуйтесь на статус і `code`, а не на текст:
+Орієнтуйтесь на статус і `code`, а не на текст. Усі коди й що з ними робити — [Помилки й коди](https://docs.gronosync.com/api/errors/).
 
-| Статус | `code` | Що означає |
-|---|---|---|
-| `422` | `chat_blocked` | Організація заблокувала чат з цим контактом в GronoSync. Повідомлення не зберігається й не доставляється. Позначте контакт у себе як «не писати»; щоб надсилати транзакційні повідомлення (статус замовлення тощо) — спершу розблокуйте чат в GronoSync |
-| `422` | `contact_unsubscribed` | Контакт відмовився від повідомлень вашої організації в усіх каналах (вимкнув оператор у GronoSync). Знімається, щойно контакт напише сам |
-| `422` | `channel_blocked` | Контакт заблокував бота в цьому каналі або платформа відмовила в доставці (видалений акаунт тощо). Інші канали контакта працюють — повторіть з іншим `channelId()` (у `channels` картки контакта лише доступні). Канал оживає, щойно контакт напише в нього чи розблокує бота |
-| `422` | `channel_unsubscribed` | Контакт відписався від цього каналу. Інші канали працюють |
-| `422` | — | Одне з: не вказано `channelId()` для нового контакту (або контакту без чату); у контакта немає ідентифікатора для цього каналу (напр. Telegram ID для Telegram-каналу); закрите 24-годинне вікно відповіді WhatsApp, Facebook Messenger чи Instagram (відповісти можна після того, як контакт напише сам); `to()` для каналу віджета/форми; вказано більше одного з `contactId()`, `contactExternalId()`, `to()`; не пройшла валідація запиту |
-| `403` | `organization_suspended` | Організацію призупинено в GronoSync. Кожен запит з цим токеном відповідатиме так само, доки її не відновлять — не повторюйте спроби, зверніться в підтримку GronoSync |
-| `403` | — | В організації немає активної підписки на вихідні повідомлення |
-| `404` | — | `contactId()`, `contactExternalId()` або `channelId()` не знайдено у вашій організації. Контакт за `contactExternalId()` не створюється — спершу `upsertContact()` |
-| `429` | — | Ліміт: 120 запитів на хвилину на токен |
+## Отримання вебхуків
 
-### Upsert контакту
-
-Використовуйте `GronosyncApi` напряму для синхронізації контакту з вашої системи:
-
-```php
-use NotificationChannels\Gronosync\GronosyncApi;
-
-app(GronosyncApi::class)->upsertContact([
-    'external_id' => (string) $user->id,
-    'name'        => $user->first_name,
-    'lastname'    => $user->last_name,
-    'email'       => $user->email,
-    'phone'       => $user->phone,
-    'extra'       => ['plan' => 'pro'],
-]);
-```
-
-Контакт шукається спочатку за `external_id`, потім за `email`, потім за `phone`. Якщо не знайдено — створюється новий. Якщо передано `external_id`, за email і телефоном знаходиться лише контакт без `external_id` (напр. той, що сам писав у месенджер) — контакт, уже прив'язаний до іншого вашого `external_id`, не перехоплюється: двоє ваших клієнтів зі спільним телефоном отримають окремі контакти.
-
-Доступні поля: `external_id`, `name`, `lastname`, `email`, `phone`, `birthday`, `gender` (`male` / `female`), `locale`, `timezone`, `comment`, `extra` (об'єкт, до 4 КБ), `avatar` (посилання `https://` на фото контакта — завантажується у фоні й стає аватаром, лише якщо його ще немає; внутрішні адреси, не https, не зображення та файли понад 5 МБ ігноруються). Порожні значення наявних даних не перезаписують.
-
-> Зміна `email`, `phone`, `name` чи `lastname` контакту таким способом теж кидає вебхук `contact.updated` — якщо ви на нього підписані й самі синхронізуєте контакти, пропускайте події зі своїм `source.token_id` (див. [Структура payload](#структура-payload)).
-
-Відповідь: `{"id": "...", "created": true, "sid": "..."}`. `sendMessage()` теж повертає `sid` у відповіді.
-Якщо є про що попередити, у відповіді ще й `warnings` — контакт при цьому збережено. Зараз одне попередження:
-`{"field": "phone", "code": "phone_not_international", "message": "..."}` — номер передано без коду країни (`0501234567`).
-Він збережений як є, але SMS і `whatsapp_echat` / `viber_echat` за ним не доставлять — `sendMessage()` такому контакту цими
-каналами поверне `422`. Передавайте номери в міжнародному форматі (`+380501234567`).
-`sid` — токен ідентичності контакту в GronoSync, потрібен переважно для Telegram-лінку продовження діалогу
-(`https://t.me/{bot}?start={sid}`). Для зв'язку цього контакту з `chat_contact`-віджетом на вашому сайті він
-не потрібен — передайте той самий `external_id` туди (як `data-external-id`), і він автоматично прив'яжеться
-до того ж контакту.
-
-### Заявка (вхідне звернення)
-
-Лід із вашого сайту, листа чи CRM можна передати в GronoSync як звернення контакта — так, ніби він заповнив форму-віджет.
-Потрібен канал типу `form` (створюється в кабінеті GronoSync; `id` — з `getChannels()`):
-
-```php
-$result = app(GronosyncApi::class)->submitForm([
-    'channel_id' => config('services.gronosync.form_channel_id'),
-    'contact_external_id' => (string) $user->id, // необов'язково — інакше контакт шукається за email/телефоном або створюється
-    'fields' => [
-        'name' => $lead->name,
-        'email' => $lead->email,
-        'phone' => $lead->phone,
-        'message' => $lead->message,
-    ],
-    'metadata' => ['lead_id' => $lead->id],
-], idempotencyKey: "lead-{$lead->id}");
-// ['message_id' => '...', 'contact_id' => '...', 'chat_id' => '...', 'sid' => '...']
-```
-
-На відміну від `sendMessage()`, це **вхідне** повідомлення: воно від імені контакта й нікуди не доставляється. Чату одразу
-призначається менеджер (AI на заявки не відповідає), відповідає менеджер у GronoSync — каналом із налаштувань форми
-(email або SMS). `contact_id` / `contact_external_id`, що не знайдені, — `404`. Підписки не потребує.
-
-Поля — довільні ключі, досить хоча б одного заповненого: обов'язковість із налаштувань форми тут не діє. Налаштування
-дають підписи й типи; поле поза ними підписується своїм ключем у вигляді заголовка (`work_email` → `Work Email`), а `email` і `phone` розпізнаються за назвою. Кривий
-email, телефон (10–15 цифр, коректний зберігається лише цифрами) чи число заявку не відхиляють: значення потрапляє в заявку
-текстом і в контакт не записується. Довжина перевіряється (`422`): до 255 символів (`textarea` і поля поза налаштуваннями —
-до 5000), не більше 20 полів. Email і телефон контакта беруться з перших коректних полів відповідного типу, ім'я — з `name`. У вебхуку `chat.message.received` поля приходять і текстом, і окремо — у
-`form_fields` (`[{"name", "label", "type", "value"}]`).
-
-`idempotencyKey` (необов'язковий, іде заголовком `Idempotency-Key`) — унікальний ключ заявки у вашій системі. Передавайте
-його, коли виклик повторюється (job у черзі): якщо таймаут приховав уже прийняту заявку, повтор із тим самим ключем поверне
-ту саму відповідь, а не створить дубль. Ключ діє 7 днів у межах організації; відхилену заявку (`404`, `422`) можна повторити
-з тим самим ключем.
-
-### Контакт і канали
-
-Прочитати картку контакту — за UUID GronoSync або за вашим `external_id`:
-
-```php
-$api = app(GronosyncApi::class);
-
-$contact = $api->getContactByExternalId((string) $customer->id); // або $api->getContact($uuid)
-```
-
-Повертається `data` відповіді: поля контакту (ті самі, що у вебхуку `contact.created`), `sid`, `chat` і `channels`.
-Контакт не знайдено у вашій організації — `CouldNotSendNotification` зі статусом `404`.
-
-- `chat` — `id`, `status` (`active` / `closed`), `is_blocked`, `is_ai_on`, `unread_count`, `activity_at` і `manager`
-  (`id`, `name`, `lastname`, `external_id` учасника організації) або `null`, якщо чат нічий.
-- `channels` — куди можна написати контакту зараз: канали, якими він уже користувався, SMS за наявним телефоном і
-  пошта за наявним email. У кожного — `can_send` і `reply_window_ends_at`: `can_send: false` означає закрите вікно
-  відповіді WhatsApp, Facebook чи Instagram — надіслати можна буде, коли контакт напише сам. Месенджера, у який
-  контакт сам не писав, у списку немає — першим туди не написати.
-
-```php
-$channel = collect($contact['channels'])->firstWhere('can_send', true);
-
-if ($channel) {
-    $api->sendMessage(
-        GronosyncMessage::make()->contactExternalId((string) $customer->id)->channelId($channel['id'])->text('Привіт!')
-    );
-}
-```
-
-Усі канали організації (`id`, `name`, `type`, `status`) — звідси `channelId()` для контакту, що ще не писав:
-
-```php
-$mail = collect($api->getChannels())->firstWhere('type', 'mail');
-```
-
-## Отримання повідомлень (вхідні вебхуки)
-
-GronoSync може сповіщати ваш додаток через HTTP POST, коли в організації відбуваються певні події. Це дозволяє реалізувати двосторонню інтеграцію: ваш додаток надсилає нотифікації контактам, а GronoSync повертає події (нові контакти, вхідні повідомлення, чати що потребують уваги, ...) назад до вас.
-
-Це особливо актуально для CRM-систем (1C, WooCommerce, Drupal тощо), яким потрібно реагувати на активність клієнтів.
-
-### Налаштування вебхуку
-
-У [кабінеті GronoSync](https://app.gronosync.com) перейдіть до налаштувань організації → Вебхук. Вкажіть URL і оберіть, на які події підписатись. `secret` генерується при першому збереженні вебхуку (і доступний будь-коли через дію "перегенерувати secret"). URL має вести на публічний сервер — `localhost` і адреси внутрішньої мережі не приймаються.
-
-Перевірити налаштування — кнопкою «Надіслати тест» (`POST /api/my/organizations/{id}/webhook/test`): GronoSync одразу надсилає подію `webhook.test` з тією самою структурою payload і заголовком `X-Webhook-Secret`, незалежно від обраних подій, і показує статус і час відповіді.
-
-### Події
-
-| Подія | Коли |
-|---|---|
-| `contact.created` | Контакт звернувся вперше (месенджер, чат-віджет, форма, лист) або ви написали новому контакту через `to()`. Не приходить для контактів, створених `upsertContact()`, імпортом або простим відкриттям сторінки з віджетом |
-| `chat.message.received` | Контакт надіслав нове повідомлення |
-| `chat.message.sent` | Ваша сторона написала контакту: менеджер, AI-асистент, API (включно з повідомленнями, надісланими через `to()`) або системне повідомлення (напр. вітальне). Внутрішні нотатки й журнал чату не надсилаються |
-| `chat.manager_needed` | AI-асистент передав чат менеджеру-людині |
-| `chat.closed` | Менеджер закрив чат |
-| `contact.updated` | Змінено email, телефон, ім'я чи прізвище контакту (зокрема через `upsertContact()`) |
-| `webhook.test` | Натиснуто «Надіслати тест» у налаштуваннях вебхука — надсилається завжди, без підписки. `data`: `{"message": "..."}` |
-
-Відповідайте `2xx` на кожну подію, зокрема ті, які не обробляєте (просто пропускайте): нові типи подій можуть з'являтися, а відповідь не `2xx` вважається невдалою доставкою і повторюється.
-
-### Структура payload
-
-GronoSync надсилає `POST`-запит з JSON-тілом:
-
-```json
-{
-    "event_id": "0a1b2c3d-0000-4e2f-b1b2-000000000000",
-    "event": "chat.message.received",
-    "organization_id": "9d4c1a00-0000-4e2f-b1b2-000000000001",
-    "source": {"type": "system"},
-    "data": {
-        "id": "9d4c1a00-0000-4e2f-b1b2-000000000002",
-        "type": "text",
-        "creator_type": "contact",
-        "content": "Привіт, мені потрібна допомога з замовленням.",
-        "internal_type": null,
-        "channel": {"id": "550e8400-e29b-41d4-a716-446655440000", "name": "Telegram Bot", "type": "telegram"},
-        "created_at": "2024-06-01T10:00:00.000000Z",
-        "updated_at": "2024-06-01T10:00:00.000000Z",
-        "member": {"role": "client", "fullname": "Іван Петренко"},
-        "files": []
-    }
-}
-```
-
-`source` — хто спричинив подію: `{"type": "extern_api", "token_id": 12, "token_name": "CRM"}` (зміна через API — зокрема цим пакетом), `{"type": "member", "member_id": "...", "external_id": "..."}` (менеджер у кабінеті чи віджеті) або `{"type": "system"}` (месенджери, AI, планувальник). Якщо синхронізуєте контакти в обидва боки, пропускайте події зі своїм `token_id` — інакше `upsertContact()` повертатиметься до вас як `contact.updated` і зміна піде по колу. `token_id` — `id` з відповіді `GET /api/my/organizations/{id}/extern-tokens`.
-
-Структура `data` залежить від `event`:
-
-| Подія | `data` |
-|---|---|
-| `chat.message.received` / `chat.message.sent` | Повідомлення: `id`, `type`, `creator_type`, `content`, `channel`, `member`, `files`, `reply_to`, `created_at`, а також `chat_id` і `contact` (`id`, `external_id`, `name`, `lastname`, `email`, `phone`) — чиє це повідомлення. Заявка з форми має ще `form_fields`. `metadata` — якщо її передали в `metadata()` чи `submitForm()`. Повідомлення, надіслане з реклами Meta (Facebook / Instagram / WhatsApp), має ще `referral`: `source`, `ad_id`, `post_id`, `title`, `body`, `url`, `ref`, `click_id` (лише непорожні ключі) |
-| `contact.created` / `contact.updated` | Контакт: `id`, `name`, `lastname`, `email`, `phone`, `locale`, `timezone`, `extra`, `external_id`, ID у месенджерах, `created_via` (як з'явився контакт: `messenger`, `widget`, `form`, `mail`, `extern_api`, `import`, `manager`; `null` для старіших контактів), `created_channel_id`, … Контакт, що прийшов з реклами Meta, має `ad_referral` (перший рекламний дотик, ті самі ключі, що й `referral`, плюс `channel_id`, `received_at`), інакше `null` |
-| `chat.manager_needed` / `chat.closed` | `{"chat_id": "...", "contact": {"id", "external_id", "name", "lastname", "email", "phone"}}` |
-
-### Верифікація запиту
-
-Кожен запит містить заголовок `X-Webhook-Secret` із secret вашого вебхука (спільний секрет, а не підпис). Порівнюйте його за сталий час, щоб переконатися, що запит від GronoSync:
-
-```php
-// routes/api.php
-Route::post('/webhooks/gronosync', [GronosyncWebhookController::class, 'handle'])
-    ->middleware('throttle:60,1');
-```
-
-```php
-// app/Http/Controllers/GronosyncWebhookController.php
-class GronosyncWebhookController extends Controller
-{
-    public function handle(Request $request): \Illuminate\Http\JsonResponse
-    {
-        // збережіть secret вебхука у власному конфігу, напр. GRONOSYNC_WEBHOOK_SECRET
-        if (!hash_equals((string) config('services.gronosync.webhook_secret'), (string) $request->header('X-Webhook-Secret'))) {
-            abort(401);
-        }
-
-        $event = $request->input('event');       // напр. "chat.message.received"
-        $data  = $request->input('data');
-        $orgId = $request->input('organization_id');
-
-        if ($event === 'chat.message.received') {
-            // Обробка вхідного повідомлення від контакту
-            // наприклад: оновлення CRM, тригер воркфлоу, логування в 1С
-        }
-
-        return response()->json(['ok' => true]);
-    }
-}
-```
-
-> **Примітка:** доставка вважається невдалою при мережевій помилці, таймауті (10 секунд) або відповіді не `2xx`; GronoSync робить до 3 спроб з інтервалом 30 секунд. Поверніть відповідь `2xx` якнайшвидше, а важку обробку передайте в чергу. Та сама подія може прийти більше одного разу — кожна спроба несе той самий `event_id`, тож зберігайте оброблені id і пропускайте повтори. `chat.message.sent` приходить і на повідомлення, надіслані через цей пакет: відсіюйте їх за `message_id` з відповіді `sendMessage()`, за власною `metadata` або за `creator_type = extern`.
+GronoSync може сповіщати ваш застосунок про нові контакти, вхідні й вихідні повідомлення та чати, яким потрібен менеджер. Налаштування, події, payload і приклад контролера для Laravel — [Вебхуки](https://docs.gronosync.com/webhooks/overview/) і [Laravel](https://docs.gronosync.com/packages/laravel/).
 
 ## Тестування
 

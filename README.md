@@ -11,23 +11,25 @@ Send Laravel notifications via [GronoSync](https://gronosync.com) — a multi-ch
 
 [Website](https://gronosync.com) · [Client dashboard](https://app.gronosync.com) · API: `https://api.gronosync.com`
 
+## Documentation
+
+This README covers the Laravel package. Everything about the GronoSync service itself is on **[docs.gronosync.com](https://docs.gronosync.com)**:
+
+- [Extern API](https://docs.gronosync.com/api/overview/) — contacts, messages, form submissions, channels, rate limits
+- [Errors and codes](https://docs.gronosync.com/api/errors/) — every status and `code`, and what to do about it
+- [Webhooks](https://docs.gronosync.com/webhooks/overview/) — events, payloads with full JSON examples, verification, retries
+- [Website widgets](https://docs.gronosync.com/widgets/overview/) — chat, form and the manager chat for your CRM
+- [API keys](https://docs.gronosync.com/authentication/) · [API changelog](https://docs.gronosync.com/changelog/)
+
 ## Contents
 
 - [Installation](#installation)
 - [Configuration](#configuration)
-- [Usage](#usage)
-  - [Sending notifications](#notification-class)
-  - [Response](#response)
-  - [Errors](#errors)
-  - [Contact sync](#upsert-contact)
-  - [Form submission (inbound request)](#form-submission-inbound-request)
-  - [Contact and channels](#contact-and-channels)
-  - [Receiving messages (webhooks)](#receiving-messages-incoming-webhooks)
+- [Sending notifications](#sending-notifications)
+- [Calling the API directly](#calling-the-api-directly)
+- [Errors](#errors)
+- [Receiving webhooks](#receiving-webhooks)
 - [Testing](#testing)
-- [Security](#security)
-- [Contributing](#contributing)
-- [Credits](#credits)
-- [License](#license)
 
 ## Installation
 
@@ -53,12 +55,9 @@ Add to `config/services.php`:
 ],
 ```
 
-The `token` is an **organization API token**, created in the [GronoSync dashboard](https://app.gronosync.com) under organization settings →
-Extern API tokens. Its value is shown only once, at creation — store it right away.
+The `token` is an organization API key: [GronoSync dashboard](https://app.gronosync.com) → **Settings → Extensions → API**. It is shown only once, at creation. See [API keys](https://docs.gronosync.com/authentication/).
 
-## Usage
-
-### Notification class
+## Sending notifications
 
 ```php
 use NotificationChannels\Gronosync\GronosyncChannel;
@@ -84,154 +83,93 @@ class OrderConfirmed extends \Illuminate\Notifications\Notification
 
 ### Routing
 
-Add `routeNotificationForGronosync()` to your notifiable model:
+Return the contact from your notifiable model — the GronoSync UUID, or your own ID if you sync contacts via `upsertContact()` with an `external_id`:
 
 ```php
-class Customer extends Model
+public function routeNotificationForGronosync(): ?string
 {
-    use Notifiable;
-
-    public function routeNotificationForGronosync(): ?string
-    {
-        return $this->gronosync_contact_id; // UUID of the contact in GronoSync
-    }
+    return $this->gronosync_contact_id; // GronoSync contact UUID
 }
-```
 
-If you sync contacts via `upsertContact()` with an `external_id`, you don't need to store the GronoSync UUID — return your own ID from `routeNotificationForGronosyncExternalId()`:
-
-```php
 public function routeNotificationForGronosyncExternalId(): ?string
 {
     return (string) $this->id; // the same external_id you pass to upsertContact()
 }
 ```
 
-If both methods are defined, `routeNotificationForGronosync()` goes first; the external ID is used only when it returns an empty value. On-demand notifications: `Notification::route('GronosyncExternalId', 'crm-42')->notify(...)`.
+If both are defined, `routeNotificationForGronosync()` goes first; the external ID is used only when it returns an empty value. On-demand: `Notification::route('GronosyncExternalId', 'crm-42')->notify(...)`.
 
-Alternatively, set the contact directly on the message:
-
-```php
-GronosyncMessage::make()
-    ->contactId($customer->gronosync_contact_id)
-    ->text('Hello!');
-```
-
-If the contact was synced via `upsertContact()` with an `external_id`, you don't have to store the GronoSync UUID — your own ID is enough:
+Or set the contact on the message — exactly one of `contactId()`, `contactExternalId()`, `to()`:
 
 ```php
-GronosyncMessage::make()
-    ->contactExternalId((string) $customer->id)
-    ->text('Hello!');
+GronosyncMessage::make()->contactExternalId((string) $customer->id)->text('Hello!');
+
+// a new contact by its identifier in the channel (phone, Telegram ID, email…)
+GronosyncMessage::make()->to('+380991234567')->channelId($smsChannelId)->text('Welcome!');
 ```
 
-Identify the contact with exactly one of `contactId()`, `contactExternalId()` or `to()` — the API rejects several at once with `422`.
+What `to` means for each channel type, and when `channelId()` is required — [Messages](https://docs.gronosync.com/api/messages/).
 
 ### GronosyncMessage methods
 
 | Method | Description |
 |---|---|
 | `contactId(string $id)` | GronoSync contact UUID |
-| `contactExternalId(string $id)` | Contact ID in your system — the `external_id` passed to `upsertContact()`. No need to store the GronoSync UUID |
-| `to(string $identifier)` | Contact identifier for the channel type (see below) — use for contacts not yet known by ID |
-| `channelId(string $id)` | GronoSync channel UUID (required for new contacts) |
+| `contactExternalId(string $id)` | Your contact ID — the `external_id` passed to `upsertContact()` |
+| `to(string $identifier)` | Contact identifier in the channel — for contacts not yet known |
+| `channelId(string $id)` | GronoSync channel UUID (required with `to()`) |
 | `text(string $text)` | Message text |
-| `attachment(string $url, ?string $filename, string $type)` | Add a single attachment. Types: `image`, `audio`, `video`, `document` |
-| `attachments(array $items, string $type)` | Add multiple attachments at once |
+| `attachment(string $url, ?string $filename, string $type)` | Add one file. Types: `image`, `audio`, `video`, `document` |
+| `attachments(array $items, string $type)` | Add several files at once |
 | `button(string $title, string $urlOrCallback, string $type)` | Add a button. Types: `web_url`, `callback` |
-| `buttons(array $items)` | Add multiple buttons at once |
-| `parseMode(string $mode)` | Text formatting: `html` or `markdown` (Telegram) |
-| `previewUrl(bool $val)` | Show URL preview: `true` or `false` (WhatsApp) |
-| `replyToId(string $id)` | ID of the message being replied to |
-| `forwardedFromId(string $id)` | ID of the forwarded message |
-| `metadata(array $metadata)` | Arbitrary data of your system (up to 4 KB), e.g. `['ticket_id' => '1234']`. Not sent to the contact — returned in `data.metadata` of the `chat.message.sent` webhook for this message |
+| `buttons(array $items)` | Add several buttons at once |
+| `parseMode(string $mode)` | `html` or `markdown` (Telegram) |
+| `previewUrl(bool $val)` | URL preview (WhatsApp) |
+| `replyToId(string $id)` | Message being replied to |
+| `forwardedFromId(string $id)` | Forwarded message |
+| `metadata(array $metadata)` | Your data (up to 4 KB) — returned in `data.metadata` of the `chat.message.sent` webhook |
 
-What `to()` means depends on the channel type of `channelId()`. The contact is found by this identifier or created:
+## Calling the API directly
 
-| Channel type | `to` |
+`GronosyncApi` is a thin client for the [Extern API](https://docs.gronosync.com/api/overview/); it returns the decoded response.
+
+| Method | Endpoint |
 |---|---|
-| `telegram` | Telegram user ID |
-| `whatsapp` | Phone number |
-| `instagram` / `facebook` | Instagram / Facebook user ID (page-scoped) |
-| `mail` | Email |
-| `sms_turbosms` | Phone number |
-| `whatsapp_echat` / `viber_echat` | Phone number |
-| `telegram_echat` | Contact ID at the provider |
-
-Phone numbers may be passed with any separators (`+38 (050) 111-22-33`) — they are stored as digits only. For `sms_turbosms`, `whatsapp_echat` and `viber_echat` the number must be complete, with the country code: a local number (`0501112233`) is rejected with `422` and `code: invalid_phone`, because the provider would not deliver to it. Widget and form channels (`chat_contact`, `chat_manager`, `form`) don't accept `to` — use `contactId()`.
-
-`whatsapp_echat` and `viber_echat` are personal numbers, so they can message a contact **first**: if a contact with this phone number already exists (import, form, SMS), the message goes to that contact instead of creating a new one. With `contactId()` it is enough for the contact to have a phone number.
-
-### Response
-
-`GronosyncApi::sendMessage()` returns the API response (Laravel doesn't pass it back when sending through the notification channel):
-
-```json
-{
-    "message": "Operation completed successfully.",
-    "message_id": "550e8400-e29b-41d4-a716-446655440000",
-    "contact_id": "7f3e1200-0000-4c2d-b8b1-000000000001",
-    "contact_created": false,
-    "chat_id": "9d8c7b6a-0000-4e2f-c9c2-000000000002",
-    "sid": "018e1234-0000-7000-a000-000000000001"
-}
-```
-
-Store `contact_id` to message the same contact later without `to`.
-
-### Examples
-
-**Message with image and button:**
+| `sendMessage(GronosyncMessage $message)` | [`POST /message`](https://docs.gronosync.com/api/messages/) |
+| `upsertContact(array $data)` | [`POST /contacts`](https://docs.gronosync.com/api/contacts/) |
+| `getContact(string $id)` / `getContactByExternalId(string $externalId)` | [`GET /contacts/{id}`](https://docs.gronosync.com/api/contacts/) — returns `data` |
+| `getChannels()` | [`GET /channels`](https://docs.gronosync.com/api/channels/) — returns `data` |
+| `submitForm(array $data, ?string $idempotencyKey = null)` | [`POST /form`](https://docs.gronosync.com/api/forms/), the key goes as `Idempotency-Key` |
 
 ```php
-GronosyncMessage::make()
-    ->contactId($notifiable->gronosync_contact_id)
-    ->text('Your invoice is ready.')
-    ->attachment('https://shop.com/invoice/123.pdf', 'invoice.pdf')
-    ->button('Download', 'https://shop.com/invoice/123.pdf');
+use NotificationChannels\Gronosync\GronosyncApi;
+
+$api = app(GronosyncApi::class);
+
+$api->upsertContact(['external_id' => (string) $user->id, 'name' => $user->name, 'phone' => $user->phone]);
+
+$contact = $api->getContactByExternalId((string) $user->id);
+$channel = collect($contact['channels'])->firstWhere('can_send', true);
+
+$api->submitForm([
+    'channel_id' => config('services.gronosync.form_channel_id'),
+    'fields' => ['name' => $lead->name, 'email' => $lead->email, 'message' => $lead->message],
+], idempotencyKey: "lead-{$lead->id}");
 ```
 
-**Telegram with HTML formatting:**
+Unknown keys in `upsertContact()` / `submitForm()` are dropped before sending.
 
-```php
-GronosyncMessage::make()
-    ->contactId($notifiable->gronosync_contact_id)
-    ->text('<b>Order confirmed</b> — thank you!')
-    ->parseMode('html');
-```
+## Errors
 
-**New contact via messenger identifier:**
+Failures are thrown as `CouldNotSendNotification`:
 
-```php
-GronosyncMessage::make()
-    ->to('380991234567')          // phone / telegram_id / etc.
-    ->channelId($channelUuid)
-    ->text('Welcome!');
-```
-
-**Callback buttons:**
-
-```php
-GronosyncMessage::make()
-    ->contactId($notifiable->gronosync_contact_id)
-    ->text('Confirm your order?')
-    ->button('Yes', 'order_confirm_123', 'callback')
-    ->button('No', 'order_cancel_123', 'callback');
-```
-
-### Errors
-
-Failures are reported as `CouldNotSendNotification`:
-
-- **Calling `GronosyncApi` directly** (`sendMessage()`, `upsertContact()`) — the exception is thrown.
-- **Via the notification channel** — the exception is **not** thrown: Laravel's `NotificationFailed` event is dispatched with the exception in `$event->data['exception']`.
-
-The exception exposes the API response:
+- **Direct `GronosyncApi` calls** — the exception is thrown.
+- **Notification channel** — it is **not** thrown: Laravel's `NotificationFailed` event is dispatched with the exception in `$event->data['exception']`.
 
 | Method | Returns |
 |---|---|
-| `getStatusCode()` | HTTP status, `null` on network errors / timeouts |
-| `getErrorCode()` | Machine-readable `code` from the response (e.g. `chat_blocked`), or `null` |
+| `getStatusCode()` | HTTP status, `null` on a network error / timeout |
+| `getErrorCode()` | Machine-readable `code` (e.g. `chat_blocked`), or `null` |
 | `getResponse()` | Decoded JSON body of the error response, or `null` |
 
 ```php
@@ -249,223 +187,11 @@ Event::listen(function (NotificationFailed $event) {
 });
 ```
 
-Common errors. The human-readable `message` is localized and may change — branch on the status and `code`, not on the text:
+Branch on the status and `code`, not on the text. All codes and what to do about them — [Errors and codes](https://docs.gronosync.com/api/errors/).
 
-| Status | `code` | Meaning |
-|---|---|---|
-| `422` | `chat_blocked` | The organization blocked the chat with this contact in GronoSync. The message is neither stored nor delivered. Mark the contact as "do not message" on your side; to send transactional messages (order status, etc.), unblock the chat in GronoSync first |
-| `422` | `contact_unsubscribed` | The contact opted out of messages from your organization in all channels (an operator turned it off in GronoSync). Returns to normal once the contact writes again |
-| `422` | `channel_blocked` | The contact blocked the bot in this channel, or the platform refused delivery (deleted account etc.). Other channels of the contact still work — retry with another `channelId()` (the contact card `channels` lists only reachable ones). The channel recovers once the contact writes there or unblocks the bot |
-| `422` | `channel_unsubscribed` | The contact unsubscribed from this channel. Other channels still work |
-| `422` | — | One of: `channelId()` is missing for a new contact (or a contact without a chat); the contact has no identifier for this channel (e.g. no Telegram ID for a Telegram channel); the 24-hour reply window of WhatsApp, Facebook Messenger or Instagram is closed (you can reply only after the contact writes first); `to()` used with a widget/form channel; more than one of `contactId()`, `contactExternalId()`, `to()` set; request validation failed |
-| `403` | `organization_suspended` | The organization is suspended by GronoSync. Every request with this token fails the same way until it is reactivated — stop retrying and contact GronoSync support |
-| `403` | — | The organization has no active subscription for outgoing messages |
-| `404` | — | `contactId()`, `contactExternalId()` or `channelId()` not found in your organization. `contactExternalId()` never creates a contact — call `upsertContact()` first |
-| `429` | — | Rate limit: 120 requests per minute per token |
+## Receiving webhooks
 
-### Upsert contact
-
-Use `GronosyncApi` directly to sync a contact from your system:
-
-```php
-use NotificationChannels\Gronosync\GronosyncApi;
-
-app(GronosyncApi::class)->upsertContact([
-    'external_id' => (string) $user->id,
-    'name'        => $user->first_name,
-    'lastname'    => $user->last_name,
-    'email'       => $user->email,
-    'phone'       => $user->phone,
-    'extra'       => ['plan' => 'pro'],
-]);
-```
-
-The contact is matched by `external_id` first, then `email`, then `phone`. If not found — it is created. When `external_id` is given, email and phone only match a contact without an `external_id` (e.g. one who wrote in a messenger) — a contact already linked to another `external_id` of yours is never taken over: two of your customers sharing a phone get separate contacts.
-
-Accepted fields: `external_id`, `name`, `lastname`, `email`, `phone`, `birthday`, `gender` (`male` / `female`), `locale`, `timezone`, `comment`, `extra` (object, up to 4 KB), `avatar` (`https://` link to the contact's photo — downloaded in the background and used only if the contact has no avatar yet; internal addresses, non-https links, non-images and files over 5 MB are ignored). Empty values don't overwrite existing data.
-
-> Updating a contact's `email`, `phone`, `name` or `lastname` this way also fires the `contact.updated` webhook — if you subscribed to it and sync contacts yourself, skip events carrying your own `source.token_id` (see [Webhook payload](#webhook-payload)).
-
-Response: `{"id": "...", "created": true, "sid": "..."}`. `sendMessage()` also includes `sid` in its response.
-If there is something to warn about, the response also has `warnings` — the contact is saved anyway. Currently the only one is
-`{"field": "phone", "code": "phone_not_international", "message": "..."}`: the phone was passed without the country code
-(`0501234567`). It is stored as is, but SMS and `whatsapp_echat` / `viber_echat` can't reach it — `sendMessage()` to such a
-contact via those channels fails with `422`. Pass numbers in international format (`+380501234567`).
-`sid` is the contact's identity token in GronoSync — mainly used for the Telegram continuation link
-(`https://t.me/{bot}?start={sid}`). It's not needed for linking this contact to your site's `chat_contact`
-widget — pass the same `external_id` there (as `data-external-id`) and it resolves to the same contact
-automatically.
-
-### Form submission (inbound request)
-
-A lead from your site, mailbox or CRM can be passed to GronoSync as a request from the contact — as if they filled in the form widget.
-It needs a `form` channel (created in the GronoSync cabinet; get its `id` from `getChannels()`):
-
-```php
-$result = app(GronosyncApi::class)->submitForm([
-    'channel_id' => config('services.gronosync.form_channel_id'),
-    'contact_external_id' => (string) $user->id, // optional — otherwise the contact is matched by email/phone or created
-    'fields' => [
-        'name' => $lead->name,
-        'email' => $lead->email,
-        'phone' => $lead->phone,
-        'message' => $lead->message,
-    ],
-    'metadata' => ['lead_id' => $lead->id],
-], idempotencyKey: "lead-{$lead->id}");
-// ['message_id' => '...', 'contact_id' => '...', 'chat_id' => '...', 'sid' => '...']
-```
-
-Unlike `sendMessage()`, this is an **inbound** message: it comes from the contact and is not delivered anywhere. A manager
-is assigned to the chat right away (the AI assistant doesn't answer form submissions) and replies in GronoSync through the
-channel set in the form settings (email or SMS). An unknown `contact_id` / `contact_external_id` is a `404`. No subscription required.
-
-Fields are arbitrary keys, at least one must be filled: required fields from the form settings are not enforced here. The
-settings provide labels and types; a field outside them is labelled by its key as a headline (`work_email` → `Work Email`), while `email` and `phone` are recognized by
-name. An invalid email, phone (10–15 digits, a valid one is stored as digits only) or number doesn't reject the submission:
-the value is kept in the submission as text and is not written to the contact. Length is checked (`422`): up to 255 characters
-(`textarea` and fields outside the settings — up to 5000), at most 20 fields. The contact's email and phone come from the
-first valid fields of that type, the name — from `name`. In the `chat.message.received` webhook fields arrive both as text and
-separately in `form_fields` (`[{"name", "label", "type", "value"}]`).
-
-`idempotencyKey` (optional, sent as the `Idempotency-Key` header) — a unique key of the submission in your system. Pass it
-when the call is retried (a queued job): if a timeout hid an accepted submission, the retry with the same key returns the same
-response instead of creating a duplicate. Keys live 7 days per organization; a rejected submission (`404`, `422`) can be
-retried with the same key.
-
-### Contact and channels
-
-Read a contact card — by the GronoSync UUID or by your `external_id`:
-
-```php
-$api = app(GronosyncApi::class);
-
-$contact = $api->getContactByExternalId((string) $customer->id); // or $api->getContact($uuid)
-```
-
-Returns the response `data`: contact fields (the same as in the `contact.created` webhook), `sid`, `chat` and `channels`.
-A contact not found in your organization throws `CouldNotSendNotification` with status `404`.
-
-- `chat` — `id`, `status` (`active` / `closed`), `is_blocked`, `is_ai_on`, `unread_count`, `activity_at` and `manager`
-  (`id`, `name`, `lastname`, the organization member's `external_id`), or `null` if nobody is assigned.
-- `channels` — where the contact can be messaged right now: channels they have already used, SMS if a phone is known
-  and email if an email is known. Each has `can_send` and `reply_window_ends_at`: `can_send: false` means the
-  WhatsApp, Facebook or Instagram reply window is closed — you can send once the contact writes first. A messenger
-  the contact has never written in is not listed — you can't start a conversation there.
-
-```php
-$channel = collect($contact['channels'])->firstWhere('can_send', true);
-
-if ($channel) {
-    $api->sendMessage(
-        GronosyncMessage::make()->contactExternalId((string) $customer->id)->channelId($channel['id'])->text('Hello!')
-    );
-}
-```
-
-All organization channels (`id`, `name`, `type`, `status`) — the source of `channelId()` for a contact who hasn't written yet:
-
-```php
-$mail = collect($api->getChannels())->firstWhere('type', 'mail');
-```
-
-## Receiving messages (incoming webhooks)
-
-GronoSync can notify your application via HTTP POST when specific events happen in your organization. This enables bidirectional integration: your app sends notifications to contacts, and GronoSync pushes events (new contacts, incoming messages, chats needing attention, ...) back to your app.
-
-This is useful for CRM systems (1C, WooCommerce, Drupal, etc.) that need to react to customer activity.
-
-### Configure the webhook
-
-In the [GronoSync dashboard](https://app.gronosync.com), go to organization settings → Webhook. Set a URL and pick which events to subscribe to. The `secret` is generated the first time you save the webhook (and shown any time via a "regenerate secret" action). The URL must point to a public server — `localhost` and private network addresses are rejected.
-
-Use "Send test" (`POST /api/my/organizations/{id}/webhook/test`) to check the setup: GronoSync immediately sends a `webhook.test` event with the same payload shape and `X-Webhook-Secret` header, regardless of the subscribed events, and shows the response status and time.
-
-### Events
-
-| Event | Fired when |
-|---|---|
-| `contact.created` | A contact reaches out for the first time (messenger, chat widget, form, email), or you message a new contact via `to()`. Not fired for contacts created by `upsertContact()`, bulk import, or just opening a page with the widget |
-| `chat.message.received` | A contact sends a new message |
-| `chat.message.sent` | Your side writes to a contact: a manager, the AI assistant, the API (including messages you sent with `to()`) or a system message (e.g. a welcome message). Internal notes and chat log entries are not sent |
-| `chat.manager_needed` | The AI assistant hands the chat over to a human manager |
-| `chat.closed` | A manager closes a chat |
-| `contact.updated` | A contact's email, phone, name or lastname changes (including via `upsertContact()`) |
-| `webhook.test` | "Send test" is pressed in webhook settings — always sent, no subscription needed. `data`: `{"message": "..."}` |
-
-Respond with `2xx` to every event, including ones you don't handle (just skip them): new event types may be added, and a non-`2xx` response is treated as a failed delivery and retried.
-
-### Webhook payload
-
-GronoSync sends a `POST` request with JSON body:
-
-```json
-{
-    "event_id": "0a1b2c3d-0000-4e2f-b1b2-000000000000",
-    "event": "chat.message.received",
-    "organization_id": "9d4c1a00-0000-4e2f-b1b2-000000000001",
-    "source": {"type": "system"},
-    "data": {
-        "id": "9d4c1a00-0000-4e2f-b1b2-000000000002",
-        "type": "text",
-        "creator_type": "contact",
-        "content": "Hello, I need help with my order.",
-        "internal_type": null,
-        "channel": {"id": "550e8400-e29b-41d4-a716-446655440000", "name": "Telegram Bot", "type": "telegram"},
-        "created_at": "2024-06-01T10:00:00.000000Z",
-        "updated_at": "2024-06-01T10:00:00.000000Z",
-        "member": {"role": "client", "fullname": "John Doe"},
-        "files": []
-    }
-}
-```
-
-`source` tells who caused the event: `{"type": "extern_api", "token_id": 12, "token_name": "CRM"}` (a change made through the API, including this package), `{"type": "member", "member_id": "...", "external_id": "..."}` (a manager in the cabinet or widget) or `{"type": "system"}` (messengers, AI, scheduler). If you sync contacts both ways, skip events carrying your own `token_id` — otherwise `upsertContact()` comes back to you as `contact.updated` and the change loops. `token_id` is the `id` from `GET /api/my/organizations/{id}/extern-tokens`.
-
-`data` shape depends on `event`:
-
-| Event | `data` |
-|---|---|
-| `chat.message.received` / `chat.message.sent` | Message: `id`, `type`, `creator_type`, `content`, `channel`, `member`, `files`, `reply_to`, `created_at`, plus `chat_id` and `contact` (`id`, `external_id`, `name`, `lastname`, `email`, `phone`) — whose message it is. Form submissions also have `form_fields`. `metadata` — if you passed it via `metadata()` or `submitForm()`. Messages sent from a Meta ad (Facebook / Instagram / WhatsApp) also have `referral`: `source`, `ad_id`, `post_id`, `title`, `body`, `url`, `ref`, `click_id` (only non-empty keys) |
-| `contact.created` / `contact.updated` | Contact: `id`, `name`, `lastname`, `email`, `phone`, `locale`, `timezone`, `extra`, `external_id`, messenger IDs, `created_via` (how the contact appeared: `messenger`, `widget`, `form`, `mail`, `extern_api`, `import`, `manager`; `null` for older contacts), `created_channel_id`, … Contacts that came from a Meta ad have `ad_referral` (the first ad touch, same keys as `referral` plus `channel_id`, `received_at`), otherwise `null` |
-| `chat.manager_needed` / `chat.closed` | `{"chat_id": "...", "contact": {"id", "external_id", "name", "lastname", "email", "phone"}}` |
-
-### Verify the request
-
-Every request includes an `X-Webhook-Secret` header with your webhook's secret (a shared secret, not a signature). Compare it in constant time to confirm the request came from GronoSync:
-
-```php
-// routes/api.php
-Route::post('/webhooks/gronosync', [GronosyncWebhookController::class, 'handle'])
-    ->middleware('throttle:60,1');
-```
-
-```php
-// app/Http/Controllers/GronosyncWebhookController.php
-class GronosyncWebhookController extends Controller
-{
-    public function handle(Request $request): \Illuminate\Http\JsonResponse
-    {
-        // store the webhook secret in your own config, e.g. GRONOSYNC_WEBHOOK_SECRET
-        if (!hash_equals((string) config('services.gronosync.webhook_secret'), (string) $request->header('X-Webhook-Secret'))) {
-            abort(401);
-        }
-
-        $event = $request->input('event');       // e.g. "chat.message.received"
-        $data  = $request->input('data');
-        $orgId = $request->input('organization_id');
-
-        if ($event === 'chat.message.received') {
-            // Handle incoming message from contact
-            // e.g. update CRM, trigger a workflow, log to 1C
-        }
-
-        return response()->json(['ok' => true]);
-    }
-}
-```
-
-> **Note:** a delivery is considered failed on a network error, a timeout (10 seconds) or a non-`2xx` response; GronoSync makes up to 3 attempts with a 30-second backoff. Return a `2xx` response as quickly as possible and dispatch heavy processing to a queue. The same event may arrive more than once — every attempt carries the same `event_id`, so store processed ids and skip repeats. `chat.message.sent` also echoes messages you sent through this package: skip them by `message_id` returned from `sendMessage()`, by your own `metadata`, or by `creator_type = extern`.
+GronoSync can notify your app about new contacts, incoming and outgoing messages and chats that need a manager. Setup, events, payloads and a Laravel controller example — [Webhooks](https://docs.gronosync.com/webhooks/overview/) and [Laravel](https://docs.gronosync.com/packages/laravel/).
 
 ## Testing
 
