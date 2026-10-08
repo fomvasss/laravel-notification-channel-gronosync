@@ -38,7 +38,7 @@ class GronosyncApi
      */
     public function upsertContact(array $data): array
     {
-        $allowed = ['external_id', 'name', 'lastname', 'email', 'phone', 'birthday', 'gender', 'locale', 'timezone', 'comment', 'extra'];
+        $allowed = ['external_id', 'name', 'lastname', 'email', 'phone', 'birthday', 'gender', 'locale', 'timezone', 'comment', 'extra', 'avatar'];
 
         return $this->post('/api/extern/contacts', array_intersect_key($data, array_flip($allowed)));
     }

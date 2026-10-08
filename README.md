@@ -282,11 +282,15 @@ app(GronosyncApi::class)->upsertContact([
 
 The contact is matched by `external_id` first, then `email`, then `phone`. If not found — it is created. When `external_id` is given, email and phone only match a contact without an `external_id` (e.g. one who wrote in a messenger) — a contact already linked to another `external_id` of yours is never taken over: two of your customers sharing a phone get separate contacts.
 
-Accepted fields: `external_id`, `name`, `lastname`, `email`, `phone`, `birthday`, `gender` (`male` / `female`), `locale`, `timezone`, `comment`, `extra` (object, up to 4 KB). Empty values don't overwrite existing data.
+Accepted fields: `external_id`, `name`, `lastname`, `email`, `phone`, `birthday`, `gender` (`male` / `female`), `locale`, `timezone`, `comment`, `extra` (object, up to 4 KB), `avatar` (`https://` link to the contact's photo — downloaded in the background and used only if the contact has no avatar yet; internal addresses, non-https links, non-images and files over 5 MB are ignored). Empty values don't overwrite existing data.
 
 > Updating a contact's `email`, `phone`, `name` or `lastname` this way also fires the `contact.updated` webhook — if you subscribed to it and sync contacts yourself, skip events carrying your own `source.token_id` (see [Webhook payload](#webhook-payload)).
 
 Response: `{"id": "...", "created": true, "sid": "..."}`. `sendMessage()` also includes `sid` in its response.
+If there is something to warn about, the response also has `warnings` — the contact is saved anyway. Currently the only one is
+`{"field": "phone", "code": "phone_not_international", "message": "..."}`: the phone was passed without the country code
+(`0501234567`). It is stored as is, but SMS and `whatsapp_echat` / `viber_echat` can't reach it — `sendMessage()` to such a
+contact via those channels fails with `422`. Pass numbers in international format (`+380501234567`).
 `sid` is the contact's identity token in GronoSync — mainly used for the Telegram continuation link
 (`https://t.me/{bot}?start={sid}`). It's not needed for linking this contact to your site's `chat_contact`
 widget — pass the same `external_id` there (as `data-external-id`) and it resolves to the same contact
