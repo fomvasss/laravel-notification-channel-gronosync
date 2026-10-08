@@ -155,10 +155,12 @@ What `to()` means depends on the channel type of `channelId()`. The contact is f
 | `instagram` / `facebook` | Instagram / Facebook user ID (page-scoped) |
 | `mail` | Email |
 | `sms_turbosms` | Phone number |
-| `echat_whatsapp` | Phone number |
-| `echat_telegram` / `echat_viber` | Contact ID at the provider |
+| `whatsapp_echat` / `viber_echat` | Phone number |
+| `telegram_echat` | Contact ID at the provider |
 
-Phone numbers may be passed in any format (`+38 (050) 111-22-33`) — they are stored as digits only. Widget and form channels (`chat_contact`, `chat_manager`, `form`) don't accept `to` — use `contactId()`.
+Phone numbers may be passed with any separators (`+38 (050) 111-22-33`) — they are stored as digits only. For `sms_turbosms`, `whatsapp_echat` and `viber_echat` the number must be complete, with the country code: a local number (`0501112233`) is rejected with `422` and `code: invalid_phone`, because the provider would not deliver to it. Widget and form channels (`chat_contact`, `chat_manager`, `form`) don't accept `to` — use `contactId()`.
+
+`whatsapp_echat` and `viber_echat` are personal numbers, so they can message a contact **first**: if a contact with this phone number already exists (import, form, SMS), the message goes to that contact instead of creating a new one. With `contactId()` it is enough for the contact to have a phone number.
 
 ### Response
 
@@ -306,7 +308,7 @@ $result = app(GronosyncApi::class)->submitForm([
         'message' => $lead->message,
     ],
     'metadata' => ['lead_id' => $lead->id],
-]);
+], idempotencyKey: "lead-{$lead->id}");
 // ['message_id' => '...', 'contact_id' => '...', 'chat_id' => '...', 'sid' => '...']
 ```
 
@@ -316,10 +318,16 @@ channel set in the form settings (email or SMS). An unknown `contact_id` / `cont
 
 Fields are arbitrary keys, at least one must be filled: required fields from the form settings are not enforced here. The
 settings provide labels and types; a field outside them is labelled by its key as a headline (`work_email` → `Work Email`), while `email` and `phone` are recognized by
-name. Format is always checked (`422`): email, phone (10–15 digits, stored as digits only), length up to 255 characters
+name. An invalid email, phone (10–15 digits, a valid one is stored as digits only) or number doesn't reject the submission:
+the value is kept in the submission as text and is not written to the contact. Length is checked (`422`): up to 255 characters
 (`textarea` and fields outside the settings — up to 5000), at most 20 fields. The contact's email and phone come from the
-first fields of that type, the name — from `name`. In the `chat.message.received` webhook fields arrive both as text and
+first valid fields of that type, the name — from `name`. In the `chat.message.received` webhook fields arrive both as text and
 separately in `form_fields` (`[{"name", "label", "type", "value"}]`).
+
+`idempotencyKey` (optional, sent as the `Idempotency-Key` header) — a unique key of the submission in your system. Pass it
+when the call is retried (a queued job): if a timeout hid an accepted submission, the retry with the same key returns the same
+response instead of creating a duplicate. Keys live 7 days per organization; a rejected submission (`404`, `422`) can be
+retried with the same key.
 
 ### Contact and channels
 
@@ -365,7 +373,9 @@ This is useful for CRM systems (1C, WooCommerce, Drupal, etc.) that need to reac
 
 ### Configure the webhook
 
-In the [GronoSync dashboard](https://app.gronosync.com), go to organization settings → Webhook. Set a URL and pick which events to subscribe to. The `secret` is generated the first time you save the webhook (and shown any time via a "regenerate secret" action).
+In the [GronoSync dashboard](https://app.gronosync.com), go to organization settings → Webhook. Set a URL and pick which events to subscribe to. The `secret` is generated the first time you save the webhook (and shown any time via a "regenerate secret" action). The URL must point to a public server — `localhost` and private network addresses are rejected.
+
+Use "Send test" (`POST /api/my/organizations/{id}/webhook/test`) to check the setup: GronoSync immediately sends a `webhook.test` event with the same payload shape and `X-Webhook-Secret` header, regardless of the subscribed events, and shows the response status and time.
 
 ### Events
 
@@ -377,6 +387,9 @@ In the [GronoSync dashboard](https://app.gronosync.com), go to organization sett
 | `chat.manager_needed` | The AI assistant hands the chat over to a human manager |
 | `chat.closed` | A manager closes a chat |
 | `contact.updated` | A contact's email, phone, name or lastname changes (including via `upsertContact()`) |
+| `webhook.test` | "Send test" is pressed in webhook settings — always sent, no subscription needed. `data`: `{"message": "..."}` |
+
+Respond with `2xx` to every event, including ones you don't handle (just skip them): new event types may be added, and a non-`2xx` response is treated as a failed delivery and retried.
 
 ### Webhook payload
 
@@ -410,7 +423,7 @@ GronoSync sends a `POST` request with JSON body:
 | Event | `data` |
 |---|---|
 | `chat.message.received` / `chat.message.sent` | Message: `id`, `type`, `creator_type`, `content`, `channel`, `member`, `files`, `reply_to`, `created_at`, plus `chat_id` and `contact` (`id`, `external_id`, `name`, `lastname`, `email`, `phone`) — whose message it is. Form submissions also have `form_fields`. `metadata` — if you passed it via `metadata()` or `submitForm()`. Messages sent from a Meta ad (Facebook / Instagram / WhatsApp) also have `referral`: `source`, `ad_id`, `post_id`, `title`, `body`, `url`, `ref`, `click_id` (only non-empty keys) |
-| `contact.created` / `contact.updated` | Contact: `id`, `name`, `lastname`, `email`, `phone`, `locale`, `timezone`, `extra`, `external_id`, messenger IDs, `created_via` (how the contact appeared: `messenger`, `widget`, `form`, `mail`, `extern_api`, `import`; `null` for older contacts), `created_channel_id`, … Contacts that came from a Meta ad have `ad_referral` (the first ad touch, same keys as `referral` plus `channel_id`, `received_at`), otherwise `null` |
+| `contact.created` / `contact.updated` | Contact: `id`, `name`, `lastname`, `email`, `phone`, `locale`, `timezone`, `extra`, `external_id`, messenger IDs, `created_via` (how the contact appeared: `messenger`, `widget`, `form`, `mail`, `extern_api`, `import`, `manager`; `null` for older contacts), `created_channel_id`, … Contacts that came from a Meta ad have `ad_referral` (the first ad touch, same keys as `referral` plus `channel_id`, `received_at`), otherwise `null` |
 | `chat.manager_needed` / `chat.closed` | `{"chat_id": "...", "contact": {"id", "external_id", "name", "lastname", "email", "phone"}}` |
 
 ### Verify the request

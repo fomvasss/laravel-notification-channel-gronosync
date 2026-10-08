@@ -80,6 +80,18 @@ class GronosyncApiTest extends TestCase
         ], json_decode((string) $request->getBody(), true));
     }
 
+    public function test_submit_form_sends_idempotency_key(): void
+    {
+        $api = $this->api([new Response(200, [], json_encode(['message_id' => 'm-1'])), new Response(200, [], json_encode(['message_id' => 'm-1']))]);
+
+        $api->submitForm(['channel_id' => 'ch-1', 'fields' => ['name' => 'Ivan']], 'lead-1');
+        $api->submitForm(['channel_id' => 'ch-1', 'fields' => ['name' => 'Ivan']]);
+
+        $this->assertSame('lead-1', $this->history[0]['request']->getHeaderLine('Idempotency-Key'));
+        $this->assertSame('Bearer token-1', $this->history[0]['request']->getHeaderLine('Authorization'));
+        $this->assertFalse($this->history[1]['request']->hasHeader('Idempotency-Key'));
+    }
+
     public function test_get_contact_by_external_id_unwraps_data(): void
     {
         $api = $this->api([new Response(200, [], json_encode(['data' => ['id' => 'c-1', 'external_id' => 'crm 42']]))]);

@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `routeNotificationForGronosyncExternalId()` routing method and `Notification::route('GronosyncExternalId', ...)` — used when `routeNotificationForGronosync()` returns nothing
 - `GronosyncApi::getContact(string $id)` and `getContactByExternalId(string $externalId)` — contact card with chat state (`chat`) and the channels the contact can be messaged in right now (`channels`, with `can_send` / `reply_window_ends_at`)
 - `GronosyncApi::getChannels()` — organization channels, the source of `channelId()`
-- `GronosyncApi::submitForm(array $data)` — pass a lead as an inbound request from the contact into a GronoSync `form` channel (`channel_id`, `fields`, optional `contact_id` / `contact_external_id`, `metadata`)
+- `GronosyncApi::submitForm(array $data, ?string $idempotencyKey = null)` — pass a lead as an inbound request from the contact into a GronoSync `form` channel (`channel_id`, `fields`, optional `contact_id` / `contact_external_id`, `metadata`); `idempotencyKey` makes retries safe against duplicates
 - `GronosyncMessage::metadata(array $metadata)` — arbitrary data returned as `data.metadata` in the `chat.message.sent` webhook for that message
 - Webhook `chat.message.received` / `chat.message.sent` payload now includes `chat_id` and `contact` (`id`, `external_id`, `name`, `lastname`, `email`, `phone`)
 - Webhook `chat.manager_needed` / `chat.closed` `contact` now includes `external_id`

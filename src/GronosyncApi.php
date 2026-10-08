@@ -46,11 +46,14 @@ class GronosyncApi
     /**
      * @throws CouldNotSendNotification
      */
-    public function submitForm(array $data): array
+    public function submitForm(array $data, ?string $idempotencyKey = null): array
     {
         $allowed = ['channel_id', 'fields', 'contact_id', 'contact_external_id', 'metadata'];
 
-        return $this->post('/api/extern/form', array_intersect_key($data, array_flip($allowed)));
+        return $this->request('POST', '/api/extern/form', [
+            'json' => array_intersect_key($data, array_flip($allowed)),
+            'headers' => array_filter(['Idempotency-Key' => $idempotencyKey]),
+        ]);
     }
 
     /**
@@ -91,13 +94,13 @@ class GronosyncApi
     protected function request(string $method, string $path, array $options = []): array
     {
         try {
-            $response = $this->client->request($method, rtrim($this->baseUrl, '/') . $path, $options + [
+            $response = $this->client->request($method, rtrim($this->baseUrl, '/') . $path, [
                 'headers' => [
                     'Authorization' => "Bearer {$this->token}",
                     'Accept' => 'application/json',
                     'Content-Type' => 'application/json',
-                ],
-            ]);
+                ] + ($options['headers'] ?? []),
+            ] + $options);
 
             $result = json_decode((string) $response->getBody(), true);
 
