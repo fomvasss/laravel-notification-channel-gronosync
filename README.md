@@ -125,8 +125,8 @@ GronosyncMessage::make()->to('+380991234567')->channelId($smsChannelId)->text('�
 | `attachments(array $items, string $type)` | Додати кілька файлів |
 | `button(string $title, string $urlOrCallback, string $type)` | Додати кнопку. Типи: `web_url`, `callback` |
 | `buttons(array $items)` | Додати кілька кнопок |
-| `parseMode(string $mode)` | `html` або `markdown` (Telegram) |
-| `previewUrl(bool $val)` | Прев'ю посилань (WhatsApp) |
+| `parseMode(string $mode)` | Поки не діє: у Telegram текст завжди йде як HTML ([Повідомлення](https://docs.gronosync.com/api/messages/)) |
+| `previewUrl(bool $val)` | Поки не діє: на прев'ю посилань не впливає |
 | `replyToId(string $id)` | Повідомлення, на яке це відповідь |
 | `forwardedFromId(string $id)` | Переслане повідомлення |
 | `metadata(array $metadata)` | Ваші дані (до 4 КБ) — повертаються в `data.metadata` вебхука `chat.message.sent` |

@@ -125,8 +125,8 @@ What `to` means for each channel type, and when `channelId()` is required — [M
 | `attachments(array $items, string $type)` | Add several files at once |
 | `button(string $title, string $urlOrCallback, string $type)` | Add a button. Types: `web_url`, `callback` |
 | `buttons(array $items)` | Add several buttons at once |
-| `parseMode(string $mode)` | `html` or `markdown` (Telegram) |
-| `previewUrl(bool $val)` | URL preview (WhatsApp) |
+| `parseMode(string $mode)` | No effect yet: Telegram always receives the text as HTML ([Messages](https://docs.gronosync.com/api/messages/)) |
+| `previewUrl(bool $val)` | No effect yet: does not change link previews |
 | `replyToId(string $id)` | Message being replied to |
 | `forwardedFromId(string $id)` | Forwarded message |
 | `metadata(array $metadata)` | Your data (up to 4 KB) — returned in `data.metadata` of the `chat.message.sent` webhook |
