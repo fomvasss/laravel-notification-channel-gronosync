@@ -49,11 +49,11 @@ class GronosyncApiTest extends TestCase
     {
         $api = $this->api([new Response(200, [], json_encode(['id' => 'c-1', 'created' => true, 'sid' => 's-1']))]);
 
-        $api->upsertContact(['external_id' => '42', 'timezone' => 'Europe/Kyiv', 'avatar' => 'https://cdn.example.com/a.jpg', 'password' => 'nope']);
+        $api->upsertContact(['contact_id' => 'c-1', 'external_id' => '42', 'timezone' => 'Europe/Kyiv', 'avatar' => 'https://cdn.example.com/a.jpg', 'password' => 'nope']);
 
         $body = json_decode((string) $this->history[0]['request']->getBody(), true);
 
-        $this->assertSame(['external_id' => '42', 'timezone' => 'Europe/Kyiv', 'avatar' => 'https://cdn.example.com/a.jpg'], $body);
+        $this->assertSame(['contact_id' => 'c-1', 'external_id' => '42', 'timezone' => 'Europe/Kyiv', 'avatar' => 'https://cdn.example.com/a.jpg'], $body);
     }
 
     public function test_submit_form_sends_only_allowed_fields(): void
