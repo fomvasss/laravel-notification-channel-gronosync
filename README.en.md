@@ -130,6 +130,7 @@ What `to` means for each channel type, and when `channelId()` is required — [M
 | `replyToId(string $id)` | Message being replied to |
 | `forwardedFromId(string $id)` | Forwarded message |
 | `metadata(array $metadata)` | Your data (up to 4 KB) — returned in `data.metadata` of the `chat.message.sent` webhook |
+| `memberExternalId(string $externalId)` | Who wrote it in your system — External ID of an organization member: shown as the message author in the cabinet (name, avatar) |
 
 ## Calling the API directly
 

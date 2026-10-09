@@ -25,6 +25,8 @@ class GronosyncMessage
 
     public ?array $metadata = null;
 
+    public ?string $memberExternalId = null;
+
     public static function make(): static
     {
         return new static();
@@ -137,6 +139,16 @@ class GronosyncMessage
         return $this;
     }
 
+    /**
+     * Who wrote it in your system — External ID of an organization member: shown as the author in the cabinet.
+     */
+    public function memberExternalId(string $externalId): static
+    {
+        $this->memberExternalId = $externalId;
+
+        return $this;
+    }
+
     public function toArray(): array
     {
         $body = [];
@@ -197,6 +209,10 @@ class GronosyncMessage
 
         if ($this->metadata !== null) {
             $body['metadata'] = $this->metadata;
+        }
+
+        if ($this->memberExternalId !== null) {
+            $body['member_external_id'] = $this->memberExternalId;
         }
 
         return $body;

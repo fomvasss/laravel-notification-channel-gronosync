@@ -130,6 +130,7 @@ GronosyncMessage::make()->to('+380991234567')->channelId($smsChannelId)->text('�
 | `replyToId(string $id)` | Повідомлення, на яке це відповідь |
 | `forwardedFromId(string $id)` | Переслане повідомлення |
 | `metadata(array $metadata)` | Ваші дані (до 4 КБ) — повертаються в `data.metadata` вебхука `chat.message.sent` |
+| `memberExternalId(string $externalId)` | Хто з людей написав у вашій системі — External ID учасника організації: автор повідомлення в кабінеті (ім'я, аватар) |
 
 ## Виклик API напряму
 

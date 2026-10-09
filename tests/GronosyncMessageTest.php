@@ -173,4 +173,16 @@ class GronosyncMessageTest extends TestCase
 
         $this->assertSame(['ticket_id' => '1234'], $array['metadata']);
     }
+
+    public function test_member_external_id(): void
+    {
+        $array = GronosyncMessage::make()
+            ->contactId('uuid-123')
+            ->text('Hello')
+            ->memberExternalId('support-7')
+            ->toArray();
+
+        $this->assertSame('support-7', $array['member_external_id']);
+        $this->assertArrayNotHasKey('member_external_id', GronosyncMessage::make()->contactId('uuid-123')->text('Hi')->toArray());
+    }
 }
